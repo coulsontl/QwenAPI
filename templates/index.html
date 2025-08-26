@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen Code API 管理器</title>
+    <link rel=icon href=https://assets.alicdn.com/g/qwenweb/qwen-webui-fe/0.0.190/favicon.png>
+    <link rel=apple-touch-icon href=https://assets.alicdn.com/g/qwenweb/qwen-webui-fe/0.0.190/favicon.png>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="status-container" class="status-container" style="display: none;"></div>
+    
+    <div class="container">
+        <h1>🤖 Qwen Code API 管理器</h1>
+        
+        <div id="login-section" class="section">
+            <h2>🔐 登录</h2>
+            <div class="form-group">
+                <div class="login-input-group">
+                    <input type="password" id="password" placeholder="请输入密码">
+                    <button id="login-btn">登录</button>
+                </div>
+            </div>
+            <div id="login-status" class="status"></div>
+        </div>
+        
+        <div id="main-section" class="hidden">
+            <div class="section">
+                <h2>🔐 获取 OAuth 凭证</h2>
+                
+                <div style="margin-bottom: 20px; text-align: center;">
+                    <button id="oauth-login-btn" style="background-color: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                        🔑 OAuth 登录获取 Token
+                    </button>
+                    <div style="margin-top: 10px;">
+                        <span style="color: #666; font-size: 14px;">通过 Qwen 官网 OAuth 认证自动获取凭证</span>
+                    </div>
+                </div>
+                
+                <div id="oauth-status" class="status" style="display: none;"></div>
+                
+                <div id="oauth-details" class="hidden" style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                    <div id="oauth-instructions"></div>
+                    <div class="oauth-button-container">
+                        <button id="manual-open-btn">
+                            🔗 打开授权页面
+                        </button>
+                        <button id="oauth-cancel-btn">
+                            ❌ 取消授权
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <h3>📁 或上传现有凭证文件</h3>
+                    <div id="drop-zone" class="drop-zone">
+                        <p>拖拽 oauth_creds.json 文件到此处，或点击选择文件</p>
+                        <input type="file" id="file-input" accept=".json" style="display: none;">
+                    </div>
+                    <div id="upload-status" class="status"></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 style="margin-top: 0; margin-bottom: 15px; color: #3498db;">🔑 Token 状态</h2>
+                <div id="token-status" class="status info" style="display: none;">
+                    <div>尚未上传凭证文件</div>
+                </div>
+                <div class="token-status-buttons" style="display: none;">
+                    <button id="refresh-token-btn">刷新所有 Token</button>
+                    <button id="delete-all-tokens-btn" style="background-color: #e74c3c;">删除所有 Token</button>
+                </div>
+                <div id="refresh-status" class="status"></div>
+            </div>
+            
+            <div class="section api-test-section">
+                <h2>💬 API 测试</h2>
+                <div class="form-group">
+                    <label for="message">消息:</label>
+                    <textarea id="message" rows="3" placeholder="输入要发送给Qwen的消息">你好，请介绍一下你自己</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="model">模型:</label>
+                    <select id="model">
+                        <option value="qwen3-coder-plus">qwen3-coder-plus</option>
+                        <option value="qwen3-coder-flash">qwen3-coder-flash</option>
+                    </select>
+                </div>
+                <button id="send-btn">发送请求</button>
+                <div id="api-status" class="status"></div>
+                <div id="api-response" class="hidden">
+                    <h3>响应:</h3>
+                    <pre id="response-content"></pre>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📖 使用说明</h2>
+                <h3>🔑 OAuth 登录方式（推荐）</h3>
+                <ol>
+                    <li>点击"OAuth 登录获取 Token"按钮</li>
+                    <li>系统自动打开 QWen 授权页面</li>
+                    <li>授权完成后，系统会自动获取并保存 token</li>
+                </ol>
+                
+                <h3>📁 文件上传方式</h3>
+                <ol>
+                    <li>从本地 ~/.qwen/oauth_creds.json 文件复制内容</li>
+                    <li>将文件拖拽到上传区域或点击选择文件</li>
+                    <li>系统会自动解析并显示token状态</li>
+                </ol>
+                
+                <h3>💬 使用 API</h3>
+                <ol>
+                    <li>使用API测试区域与Qwen Code进行交互</li>
+                    <li>系统会自动刷新过期的token，无需手动操作</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
