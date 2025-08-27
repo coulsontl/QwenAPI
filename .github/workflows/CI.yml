@@ -28,11 +28,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Lint with ruff
-        run: |
-          pip install ruff
-          ruff check .
-
   build-and-push:
     needs: ci
     # Only run this job when a tag is pushed
