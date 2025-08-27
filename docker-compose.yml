@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   qwen-api:
-    build: .
+    image: ghcr.io/water008/qwenapi:latest
     ports:
       - "8000:8000"
     volumes:

@@ -15,6 +15,7 @@ FastAPI server providing Qwen model API interface, compatible with OpenAI API fo
 - 💾 SQLite persistent storage
 - 🌐 Web management interface
 - 🏗️ Modular architecture design
+- 🐳 Docker deployment support
 
 ## System Requirements
 
@@ -63,6 +64,22 @@ pip install -r requirements.txt
 # 3. Run the server
 uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+### Method 3: Using Docker (Recommended)
+
+```bash
+# Use pre-built image
+docker run -d \
+  --name qwen-api \
+  -p 8000:8000 \
+  -e API_PASSWORD=your_secure_password \
+  ghcr.io/water008/qwenapi:latest
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+Docker image URL: `ghcr.io/water008/qwenapi:latest`
 
 ### Environment Variable Configuration
 

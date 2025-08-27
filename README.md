@@ -15,6 +15,7 @@ FastAPI 服务器，提供 Qwen 模型的 API 接口，兼容 OpenAI API 格式�
 - 💾 SQLite 持久化存储
 - 🌐 Web 管理界面
 - 🏗️ 模块化架构设计
+- 🐳 Docker 支持部署
 
 ## 系统要求
 
@@ -63,6 +64,22 @@ pip install -r requirements.txt
 # 3. 运行服务器
 uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+### 方式三：使用 Docker（推荐）
+
+```bash
+# 使用预构建镜像
+docker run -d \
+  --name qwen-api \
+  -p 8000:8000 \
+  -e API_PASSWORD=your_secure_password \
+  ghcr.io/water008/qwenapi:latest
+
+# 或使用 docker-compose
+docker-compose up -d
+```
+
+Docker 镜像地址：`ghcr.io/water008/qwenapi:latest`
 
 ### 环境变量配置
 
