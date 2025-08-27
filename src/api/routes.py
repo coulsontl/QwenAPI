@@ -6,7 +6,7 @@ import time
 import aiohttp
 from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, Request, Depends
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from ..auth import check_auth
 from ..oauth import OAuthManager, TokenManager
@@ -231,6 +231,8 @@ async def handle_chat(data: Dict[str, Any]):
     messages = data.get('messages')
     model = data.get('model', 'qwen3-coder-plus')
     stream = data.get('stream', False)
+    temperature = data.get('temperature', 0.5)
+    top_p = data.get('top_p', 1)
     
     # 验证messages数组格式
     if not messages or not isinstance(messages, list) or len(messages) == 0:
@@ -245,37 +247,44 @@ async def handle_chat(data: Dict[str, Any]):
     token_id, current_token = valid_token_result
     
     # 异步处理API调用
-    async with aiohttp.ClientSession() as session:
-        headers = {
-            'Authorization': f'Bearer {current_token.access_token}',
-            'Content-Type': 'application/json'
-        }
-        
-        if stream:
-            headers['Accept'] = 'text/event-stream'
-        
-        request_body = {
-            'model': model,
-            'messages': messages,
-            'temperature': 0,
-            'top_p': 1,
-            'stream': stream
-        }
-        
-        async with session.post(
-            QWEN_API_ENDPOINT,
-            json=request_body,
-            headers=headers
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise HTTPException(status_code=500, detail=f'API调用失败: {response.status} {error_text}')
-            
-            if stream:
-                # 流式响应
-                content = await response.read()
-                return Response(content=content, media_type="text/event-stream")
-            else:
-                # 非流式响应
-                text = await response.text()
-                return JSONResponse(content=json.loads(text))
+    session = aiohttp.ClientSession()
+    headers = {
+        'Authorization': f'Bearer {current_token.access_token}',
+        'Content-Type': 'application/json'
+    }
+
+    if stream:
+        headers['Accept'] = 'text/event-stream'
+
+    request_body = {
+        'model': model,
+        'messages': messages,
+        'temperature': temperature,
+        'top_p': top_p,
+        'stream': stream
+    }
+
+    response = await session.post(
+        QWEN_API_ENDPOINT,
+        json=request_body,
+        headers=headers
+    )
+
+    if response.status != 200:
+        error_text = await response.text()
+        await session.close()
+        raise HTTPException(status_code=500, detail=f'API调用失败: {response.status} {error_text}')
+
+    if stream:
+        async def generator():
+            try:
+                async for chunk in response.content.iter_any():
+                    yield chunk
+            finally:
+                await session.close()
+        return StreamingResponse(generator(), media_type="text/event-stream")
+    else:
+        # 非流式响应
+        text = await response.text()
+        await session.close()
+        return JSONResponse(content=json.loads(text))
