@@ -16,6 +16,7 @@ FastAPI server providing Qwen model API interface, compatible with OpenAI API fo
 - 🌐 Web management interface
 - 🏗️ Modular architecture design
 - 🐳 Docker deployment support
+- 🌍 Multi-timezone support
 
 ## System Requirements
 
@@ -104,6 +105,11 @@ DEBUG=false
 # OAuth2 configuration
 QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
 QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
+QWEN_OAUTH_SCOPE=openid profile email model.completion
+QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
+
+# Timezone configuration
+TZ=UTC
 ```
 
 #### Method 2: Direct Environment Variable Setting
@@ -116,6 +122,7 @@ export HOST=0.0.0.0          # Listening address
 export API_PASSWORD=yourpass  # Access password
 export DATABASE_URL=data/tokens.db # Database file path
 export DEBUG=false           # Debug mode
+export TZ=UTC                # Timezone setting
 ```
 
 ##### Windows
@@ -126,6 +133,7 @@ set HOST=0.0.0.0
 set API_PASSWORD=yourpass
 set DATABASE_URL=data/tokens.db
 set DEBUG=false
+set TZ=UTC
 ```
 
 ## Usage
@@ -285,7 +293,8 @@ QwenAPI/
 │   │   ├── oauth_manager.py # OAuth management
 │   │   └── token_manager.py # Token management
 │   ├── utils/               # Utility module
-│   │   └── helpers.py       # Helper functions
+│   │   ├── helpers.py       # Helper functions
+│   │   └── timezone_utils.py # Timezone utility functions
 │   └── web/                 # Web interface
 │       └── web_routes.py    # Web routes
 ├── static/                  # Static files
@@ -297,9 +306,11 @@ QwenAPI/
 │   └── tokens.db           # SQLite database
 ├── requirements.txt        # Python dependencies
 ├── setup.py               # Package installation configuration
+├── docker-compose.yml     # Docker Compose configuration
 ├── run.sh                 # Linux/macOS startup script
 ├── run.bat                # Windows startup script
-└── README.md              # Project documentation
+├── README.md              # Project documentation (Chinese)
+└── README_en.md           # Project documentation (English)
 ```
 
 ## Notes

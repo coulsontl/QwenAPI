@@ -4,7 +4,9 @@ API endpoints for Qwen Code API Server
 import json
 import time
 import aiohttp
+import tiktoken
 from typing import Dict, Any
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
@@ -13,10 +15,20 @@ from ..oauth import OAuthManager, TokenManager
 from ..database import TokenDatabase
 from ..models import TokenData
 from ..utils import get_token_id
+from ..utils.timezone_utils import get_local_today, get_local_today_iso, utc_to_local
 from ..config import API_PASSWORD, QWEN_API_ENDPOINT
 
 
 router = APIRouter()
+
+
+async def parse_json_request(request: Request) -> Dict[str, Any]:
+    """通用JSON请求解析函数"""
+    try:
+        return await request.json()
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="JSON解析错误")
+
 
 # Initialize managers
 db = TokenDatabase()
@@ -27,10 +39,7 @@ token_manager = TokenManager(db)
 @router.post("/login")
 async def api_login(request: Request):
     """处理登录请求"""
-    try:
-        data = await request.json()
-    except:
-        raise HTTPException(status_code=400, detail="请求格式错误")
+    data = await parse_json_request(request)
     
     password = data.get('password')
     
@@ -43,10 +52,7 @@ async def api_login(request: Request):
 @router.post("/upload-token")
 async def api_upload_token(request: Request, auth: bool = Depends(check_auth)):
     """处理token上传"""
-    try:
-        data = await request.json()
-    except:
-        raise HTTPException(status_code=400, detail="请求格式错误")
+    data = await parse_json_request(request)
     
     access_token = data.get('access_token')
     refresh_token = data.get('refresh_token')
@@ -83,10 +89,7 @@ async def api_token_status(auth: bool = Depends(check_auth)):
 @router.post("/refresh-single-token")
 async def api_refresh_single_token(request: Request, auth: bool = Depends(check_auth)):
     """处理刷新单个token"""
-    try:
-        data = await request.json()
-    except:
-        raise HTTPException(status_code=400, detail="请求格式错误")
+    data = await parse_json_request(request)
     
     token_id = data.get('tokenId')
     
@@ -109,10 +112,7 @@ async def api_refresh_single_token(request: Request, auth: bool = Depends(check_
 @router.post("/delete-token")
 async def api_delete_token(request: Request, auth: bool = Depends(check_auth)):
     """处理删除单个token"""
-    try:
-        data = await request.json()
-    except:
-        raise HTTPException(status_code=400, detail="请求格式错误")
+    data = await parse_json_request(request)
     
     token_id = data.get('tokenId')
     
@@ -174,10 +174,7 @@ async def api_oauth_init(auth: bool = Depends(check_auth)):
 @router.post("/oauth-poll")
 async def api_oauth_poll(request: Request, auth: bool = Depends(check_auth)):
     """处理OAuth轮询状态"""
-    try:
-        data = await request.json()
-    except:
-        raise HTTPException(status_code=400, detail="请求格式错误")
+    data = await parse_json_request(request)
     
     state_id = data.get('stateId')
     
@@ -204,10 +201,7 @@ async def api_oauth_poll(request: Request, auth: bool = Depends(check_auth)):
 @router.post("/oauth-cancel")
 async def api_oauth_cancel(request: Request, auth: bool = Depends(check_auth)):
     """取消OAuth认证"""
-    try:
-        data = await request.json()
-    except:
-        raise HTTPException(status_code=400, detail="请求格式错误")
+    data = await parse_json_request(request)
     
     state_id = data.get('stateId')
     
@@ -218,27 +212,64 @@ async def api_oauth_cancel(request: Request, auth: bool = Depends(check_auth)):
 @router.post("/chat")
 async def api_chat(request: Request, auth: bool = Depends(check_auth)):
     """处理聊天API请求"""
-    try:
-        data = await request.json()
-    except:
-        raise HTTPException(status_code=400, detail="请求格式错误")
+    data = await parse_json_request(request)
     
     return await handle_chat(data)
 
 
+@router.get("/statistics/usage")
+async def get_usage_statistics(request: Request, auth: bool = Depends(check_auth)):
+    """获取指定日期的token使用量"""
+    date_param = request.query_params.get('date')
+    if date_param is None:
+        date_param = get_local_today_iso()
+    
+    stats = db.get_usage_stats(date_param)
+    return JSONResponse(content=stats)
+
+
+@router.delete("/statistics/usage")
+async def delete_usage_statistics(request: Request, auth: bool = Depends(check_auth)):
+    """删除指定日期的token使用量"""
+    data = await parse_json_request(request)
+    
+    date_param = data.get('date')
+    if not date_param:
+        raise HTTPException(status_code=400, detail="缺少date参数")
+    
+    deleted_count = db.delete_usage_stats(date_param)
+    
+    return JSONResponse(content={
+        'success': True,
+        'deletedCount': deleted_count,
+        'date': date_param,
+        'message': f'成功删除 {date_param} 的 {deleted_count} 条用量记录'
+    })
+
+
 async def handle_chat(data: Dict[str, Any]):
-    """处理聊天API请求"""
+    """处理聊天API请求，并手动计算token"""
     messages = data.get('messages')
     model = data.get('model', 'qwen3-coder-plus')
     stream = data.get('stream', False)
     temperature = data.get('temperature', 0.5)
     top_p = data.get('top_p', 1)
     
-    # 验证messages数组格式
     if not messages or not isinstance(messages, list) or len(messages) == 0:
         raise HTTPException(status_code=400, detail="缺少消息内容")
-    
-    # 获取有效token
+
+    # --- Token Manual Calculation ---
+    try:
+        encoding = tiktoken.get_encoding("cl100k_base")
+    except Exception:
+        # Fallback for environments where downloading might fail
+        encoding = tiktoken.encoding_for_model("gpt-4")
+
+    prompt_tokens = 0
+    for message in messages:
+        prompt_tokens += len(encoding.encode(message.get('content', '')))
+    # --- End Token Calculation ---
+
     token_manager.load_tokens()
     valid_token_result = await token_manager.get_valid_token()
     if not valid_token_result:
@@ -246,7 +277,6 @@ async def handle_chat(data: Dict[str, Any]):
     
     token_id, current_token = valid_token_result
     
-    # 异步处理API调用
     session = aiohttp.ClientSession()
     headers = {
         'Authorization': f'Bearer {current_token.access_token}',
@@ -277,14 +307,39 @@ async def handle_chat(data: Dict[str, Any]):
 
     if stream:
         async def generator():
+            completion_text = ""
+            buffer = ""
             try:
                 async for chunk in response.content.iter_any():
                     yield chunk
+                    buffer += chunk.decode('utf-8')
+                    while '\n' in buffer:
+                        line, buffer = buffer.split('\n', 1)
+                        if line.startswith('data:'):
+                            line_data = line[len('data:'):].strip()
+                            if line_data == '[DONE]':
+                                continue
+                            try:
+                                json_data = json.loads(line_data)
+                                if json_data['choices'][0]['delta'] and 'content' in json_data['choices'][0]['delta']:
+                                    completion_text += json_data['choices'][0]['delta']['content']
+                            except (json.JSONDecodeError, KeyError, IndexError):
+                                pass
             finally:
+                completion_tokens = len(encoding.encode(completion_text))
+                total_tokens = prompt_tokens + completion_tokens
+                today = get_local_today_iso()
+                db.update_token_usage(today, model, total_tokens)
+                db.increment_token_usage_count(token_id) # Increment usage count for the token
                 await session.close()
         return StreamingResponse(generator(), media_type="text/event-stream")
     else:
-        # 非流式响应
-        text = await response.text()
+        response_json = await response.json()
         await session.close()
-        return JSONResponse(content=json.loads(text))
+        if 'usage' in response_json and 'total_tokens' in response_json['usage']:
+            today = get_local_today_iso()
+            tokens_used = response_json['usage']['total_tokens']
+            db.update_token_usage(today, model, tokens_used)
+            db.increment_token_usage_count(token_id) # Increment usage count for the token
+        return JSONResponse(content=response_json)
+

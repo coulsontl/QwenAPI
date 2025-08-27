@@ -3,7 +3,7 @@ OAuth2 management for Qwen Code API Server
 """
 import time
 import aiohttp
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from ..models import OAuthState, TokenData
 from ..utils import generate_state_id, generate_pkce_pair
 from ..config import (
@@ -21,7 +21,7 @@ class OAuthManager:
     def __init__(self):
         self.oauth_states: Dict[str, OAuthState] = {}
     
-    async def init_oauth(self) -> Dict[str, any]:
+    async def init_oauth(self) -> Dict[str, Any]:
         """初始化OAuth设备授权"""
         try:
             # 生成PKCE对
@@ -72,7 +72,7 @@ class OAuthManager:
         except Exception as error:
             raise Exception(f'OAuth初始化失败: {str(error)}')
     
-    async def poll_oauth_status(self, state_id: str) -> Dict[str, any]:
+    async def poll_oauth_status(self, state_id: str) -> Dict[str, Any]:
         """轮询OAuth认证状态"""
         state = self.oauth_states.get(state_id)
         if not state:
@@ -158,7 +158,7 @@ class OAuthManager:
                     'status': 'pending'
                 }
     
-    def cancel_oauth(self, state_id: str):
+    def cancel_oauth(self, state_id: str) -> Dict[str, Any]:
         """取消OAuth认证"""
         if state_id:
             self.oauth_states.pop(state_id, None)

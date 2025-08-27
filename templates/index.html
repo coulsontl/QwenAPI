@@ -73,6 +73,23 @@
                 </div>
                 <div id="refresh-status" class="status"></div>
             </div>
+
+            <div class="section">
+                <h2>📊 用量统计</h2>
+                <div class="form-group usage-date-selector">
+                    <input type="date" id="usage-date">
+                    <button id="query-usage-btn">查询</button>
+                    <button id="delete-usage-btn" style="background-color: #e74c3c;">删除</button>
+                </div>
+                <div id="token-usage-section">
+                    <div class="total-usage-badges">
+                        <div id="total-tokens-badge" class="token-status status-tokens">总计 Tokens: <span id="total-tokens-today">...</span></div>
+                        <div id="total-calls-badge" class="token-status status-calls">总计调用: <span id="total-calls-today">...</span></div>
+                    </div>
+                    <div id="model-usage-details"></div>
+                </div>
+                <div id="token-usage-status" class="status"></div>
+            </div>
             
             <div class="section api-test-section">
                 <h2>💬 API 测试</h2>

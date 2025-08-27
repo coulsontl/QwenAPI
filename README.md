@@ -16,6 +16,7 @@ FastAPI 服务器，提供 Qwen 模型的 API 接口，兼容 OpenAI API 格式�
 - 🌐 Web 管理界面
 - 🏗️ 模块化架构设计
 - 🐳 Docker 支持部署
+- 🌍 多时区支持
 
 ## 系统要求
 
@@ -104,6 +105,11 @@ DEBUG=false
 # OAuth2 配置
 QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
 QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
+QWEN_OAUTH_SCOPE=openid profile email model.completion
+QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
+
+# 时区配置
+TZ=UTC
 ```
 
 #### 方式二：直接设置环境变量
@@ -116,6 +122,7 @@ export HOST=0.0.0.0          # 监听地址
 export API_PASSWORD=yourpass  # 访问密码
 export DATABASE_URL=data/tokens.db # 数据库文件路径
 export DEBUG=false           # 调试模式
+export TZ=UTC                # 时区设置
 ```
 
 ##### Windows
@@ -126,6 +133,7 @@ set HOST=0.0.0.0
 set API_PASSWORD=yourpass
 set DATABASE_URL=data/tokens.db
 set DEBUG=false
+set TZ=UTC
 ```
 
 ## 使用方法
@@ -285,7 +293,8 @@ QwenAPI/
 │   │   ├── oauth_manager.py # OAuth 管理
 │   │   └── token_manager.py # Token 管理
 │   ├── utils/               # 工具模块
-│   │   └── helpers.py       # 辅助函数
+│   │   ├── helpers.py       # 辅助函数
+│   │   └── timezone_utils.py # 时区工具函数
 │   └── web/                 # Web 界面
 │       └── web_routes.py    # Web 路由
 ├── static/                  # 静态文件
@@ -297,9 +306,11 @@ QwenAPI/
 │   └── tokens.db           # SQLite 数据库
 ├── requirements.txt        # Python 依赖
 ├── setup.py               # 包安装配置
+├── docker-compose.yml     # Docker Compose 配置
 ├── run.sh                 # Linux/macOS 启动脚本
 ├── run.bat                # Windows 启动脚本
-└── README.md              # 项目说明
+├── README.md              # 项目说明（中文）
+└── README_en.md           # 项目说明（英文）
 ```
 
 ## 注意事项

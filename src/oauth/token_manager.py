@@ -8,6 +8,7 @@ from typing import Dict, Optional, Tuple, List, Any
 from ..models import TokenData, RefreshResult
 from ..database import TokenDatabase
 from ..utils import get_token_id
+from ..utils.timezone_utils import timestamp_to_local_datetime, format_local_datetime
 from ..config import QWEN_OAUTH_TOKEN_ENDPOINT, QWEN_OAUTH_CLIENT_ID
 
 
@@ -18,21 +19,21 @@ class TokenManager:
         self.db = db
         self.token_store: Dict[str, TokenData] = {}
     
-    def load_tokens(self):
+    def load_tokens(self) -> None:
         """从数据库加载所有token"""
         self.token_store = self.db.load_all_tokens()
     
-    def save_token(self, token_id: str, token_data: TokenData):
+    def save_token(self, token_id: str, token_data: TokenData) -> None:
         """保存token到数据库和内存"""
         self.token_store[token_id] = token_data
         self.db.save_token(token_id, token_data)
     
-    def delete_token(self, token_id: str):
+    def delete_token(self, token_id: str) -> None:
         """删除token"""
         self.token_store.pop(token_id, None)
         self.db.delete_token(token_id)
     
-    def delete_all_tokens(self):
+    def delete_all_tokens(self) -> None:
         """删除所有token"""
         self.token_store.clear()
         self.db.delete_all_tokens()
@@ -43,21 +44,31 @@ class TokenManager:
         for token_id, token in self.token_store.items():
             is_expired = token.expires_at and (time.time() * 1000) > token.expires_at
             
+            # 格式化时间戳为本地时间
+            expires_at_str = format_local_datetime(timestamp_to_local_datetime(token.expires_at)) if token.expires_at else "未知"
+            uploaded_at_str = format_local_datetime(timestamp_to_local_datetime(token.uploaded_at)) if token.uploaded_at else "未知"
+            
             if is_expired:
                 # 过期的token，直接标记为过期
                 token_list.append({
                     'id': token_id,
                     'expiresAt': token.expires_at,
+                    'expiresAtDisplay': expires_at_str,
                     'isExpired': True,
                     'uploadedAt': token.uploaded_at,
+                    'uploadedAtDisplay': uploaded_at_str,
+                    'usageCount': token.usage_count,
                     'refreshFailed': True
                 })
             else:
                 token_list.append({
                     'id': token_id,
                     'expiresAt': token.expires_at,
+                    'expiresAtDisplay': expires_at_str,
                     'isExpired': False,
-                    'uploadedAt': token.uploaded_at
+                    'uploadedAt': token.uploaded_at,
+                    'uploadedAtDisplay': uploaded_at_str,
+                    'usageCount': token.usage_count
                 })
         
         return {
@@ -113,7 +124,8 @@ class TokenManager:
                         access_token=result['access_token'],
                         refresh_token=result.get('refresh_token', token.refresh_token),
                         expires_at=int(time.time() * 1000) + result.get('expires_in', 3600) * 1000,
-                        uploaded_at=token.uploaded_at
+                        uploaded_at=token.uploaded_at,
+                        usage_count=token.usage_count
                     )
                     
                     # 更新存储

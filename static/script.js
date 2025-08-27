@@ -18,6 +18,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiResponse = document.getElementById('api-response');
     const responseContent = document.getElementById('response-content');
     const statusContainer = document.getElementById('status-container');
+    const totalTokensToday = document.getElementById('total-tokens-today');
+    const totalCallsToday = document.getElementById('total-calls-today');
+    const modelUsageDetails = document.getElementById('model-usage-details');
+    const tokenUsageStatus = document.getElementById('token-usage-status');
+    const usageDateInput = document.getElementById('usage-date');
+    const queryUsageBtn = document.getElementById('query-usage-btn');
+    const deleteUsageBtn = document.getElementById('delete-usage-btn');
     
     const oauthLoginBtn = document.getElementById('oauth-login-btn');
     const oauthStatus = document.getElementById('oauth-status');
@@ -62,11 +69,88 @@ document.addEventListener('DOMContentLoaded', function() {
                 loginSection.classList.add('hidden');
                 mainSection.classList.remove('hidden');
                 checkTokenStatus();
+                // Initialize date input and load usage for today (using local timezone)
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0'); // Months start at 0!
+                const dd = String(today.getDate()).padStart(2, '0');
+                const todayString = `${yyyy}-${mm}-${dd}`;
+                usageDateInput.value = todayString;
+                // Initial load of usage for today
+                checkTokenUsage(todayString);
+                
+                // Add event listeners for usage query and delete
+                if (queryUsageBtn) {
+                    queryUsageBtn.addEventListener('click', async function() {
+                        const selectedDate = usageDateInput.value;
+                        if (!selectedDate) {
+                            addStatusMessage('请选择日期', 'error', 3000);
+                            return;
+                        }
+                        queryUsageBtn.disabled = true;
+                        queryUsageBtn.textContent = '查询中...';
+                        try {
+                            await checkTokenUsage(selectedDate);
+                            addStatusMessage(`已加载 ${selectedDate} 的用量数据`, 'success', 3000);
+                        } catch (error) {
+                            addStatusMessage('查询失败: ' + error.message, 'error', 3000);
+                        } finally {
+                            queryUsageBtn.disabled = false;
+                            queryUsageBtn.textContent = '查询';
+                        }
+                    });
+                }
+                
+                if (deleteUsageBtn) {
+                    deleteUsageBtn.addEventListener('click', async function() {
+                        const selectedDate = usageDateInput.value;
+                        if (!selectedDate) {
+                            addStatusMessage('请选择要删除的日期', 'error', 3000);
+                            return;
+                        }
+                        
+                        showConfirmDialog(
+                            `确定要删除 ${selectedDate} 的用量数据吗？此操作不可撤销。`,
+                            async function() {
+                                deleteUsageBtn.disabled = true;
+                                deleteUsageBtn.textContent = '删除中...';
+                                try {
+                                    const response = await fetch('/api/statistics/usage', {
+                                        method: 'DELETE',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': 'Bearer ' + userPassword,
+                                        },
+                                        body: JSON.stringify({ date: selectedDate }),
+                                    });
+                                    
+                                    const data = await response.json();
+                                    
+                                    if (response.ok) {
+                                        addStatusMessage(data.message || '删除成功', 'success', 3000);
+                                        // Refresh the usage data for the selected date
+                                        await checkTokenUsage(selectedDate);
+                                    } else {
+                                        addStatusMessage(data.error || '删除失败', 'error', 3000);
+                                    }
+                                } catch (error) {
+                                    addStatusMessage('网络错误: ' + error.message, 'error', 3000);
+                                } finally {
+                                    deleteUsageBtn.disabled = false;
+                                    deleteUsageBtn.textContent = '删除';
+                                }
+                            },
+                            null,
+                            "删除用量数据"
+                        );
+                    });
+                }
+
                 setTimeout(() => {
                     loginStatus.style.display = 'none';
                 }, 3000);
             } else {
-                showStatus(loginStatus, data.error || '登录失败', 'error');
+                showStatus(loginStatus, data.detail || '登录失败', 'error');
             }
         } catch (error) {
             showStatus(loginStatus, '网络错误: ' + error.message, 'error');
@@ -519,18 +603,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.tokens && data.tokens.length > 0) {
                     tokenListHtml = '<div class="token-list-wrapper"><div class="token-list">';
                     data.tokens.forEach(function(token) {
-                        const expiresAt = token.expiresAt ? new Date(token.expiresAt).toLocaleString() : '未知';
+                        const expiresAt = token.expiresAtDisplay || (token.expiresAt ? new Date(token.expiresAt).toLocaleString() : '未知');
+                        const uploadedAt = token.uploadedAtDisplay || (token.uploadedAt ? new Date(token.uploadedAt).toLocaleString() : '未知');
                         const status = token.isExpired ? '已过期' : '有效';
                         const statusClass = token.isExpired ? 'status-expired' : 'status-valid';
                         const refreshInfo = token.wasRefreshed ? ' (已自动刷新)' : (token.refreshFailed ? ' (刷新失败)' : '');
                         tokenListHtml += '<div class="token-card" data-token-id="' + encodeURIComponent(token.id) + '">';
                         tokenListHtml += '<div class="token-header">';
                         tokenListHtml += '<div class="token-id">🔑 ' + token.id + '</div>';
+                        tokenListHtml += '<div class="token-header-badges">';
+                        tokenListHtml += `<div class="token-status status-usage">使用: ${token.usageCount.toLocaleString()}</div>`;
                         tokenListHtml += '<div class="token-status ' + statusClass + '">' + status + '</div>';
-                        tokenListHtml += '</div>';
+                        tokenListHtml += '</div>'; // close token-header-badges
+                        tokenListHtml += '</div>'; // close token-header
                         tokenListHtml += '<div class="token-details">';
                         tokenListHtml += '<div><strong>过期时间:</strong> ' + expiresAt + '</div>';
-                        tokenListHtml += '<div><strong>上传时间:</strong> ' + new Date(token.uploadedAt).toLocaleString() + '</div>';
+                        tokenListHtml += '<div><strong>上传时间:</strong> ' + uploadedAt + '</div>';
                         if (refreshInfo) {
                             tokenListHtml += '<div><strong>状态:</strong> ' + refreshInfo + '</div>';
                         }
@@ -544,7 +632,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     tokenListHtml += '</div></div>';
                 }
                 
-                tokenStatus.innerHTML = '<div class="token-info"><strong>🔢 Token总数:</strong> ' + data.tokenCount + '<br><strong>📊 Token状态:</strong> 有效</div>' + tokenListHtml;
+                let headerHtml = '<div class="token-summary-badges">';
+                headerHtml += `<div class="token-status status-info">🔢 Token总数: ${data.tokenCount}</div>`;
+                headerHtml += '<div class="token-status status-valid">📊 状态: 有效</div>';
+                headerHtml += '</div>';
+
+                tokenStatus.innerHTML = headerHtml + tokenListHtml;
                 tokenStatus.style.display = 'block';
                 
                 const tokenStatusButtons = document.querySelector('.token-status-buttons');
@@ -669,6 +762,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     showStatus(apiStatus, '请求成功', 'success');
                     responseContent.textContent = JSON.stringify(data, null, 2);
                     apiResponse.classList.remove('hidden');
+                    checkTokenUsage(); // Refresh usage stats after a successful call
                 } else {
                     showStatus(apiStatus, data.error || '请求失败', 'error');
                 }
@@ -676,6 +770,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 showStatus(apiStatus, '网络错误: ' + error.message, 'error');
             }
         });
+    }
+
+    // Check token usage
+    async function checkTokenUsage(date = null) {
+        if (!totalTokensToday || !modelUsageDetails || !tokenUsageStatus) return;
+
+        try {
+            const url = date ? `/api/statistics/usage?date=${date}` : '/api/statistics/usage';
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': 'Bearer ' + userPassword
+                }
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById('total-tokens-today').textContent = data.total_tokens_today.toLocaleString();
+                document.getElementById('total-calls-today').textContent = data.total_calls_today.toLocaleString();
+
+                let detailsHtml = '';
+                if (Object.keys(data.models).length > 0) {
+                    detailsHtml = '<div class="token-list">';
+                    for (const [model, usage] of Object.entries(data.models)) {
+                        detailsHtml += `
+                            <div class="token-card usage-stats-card">
+                                <div class="usage-model-name">${model}</div>
+                                <div class="usage-stats-badges">
+                                    <div class="token-status status-tokens">Tokens: ${usage.total_tokens.toLocaleString()}</div>
+                                    <div class="token-status status-calls">调用: ${usage.call_count.toLocaleString()}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    detailsHtml += '</div>';
+                } else {
+                    detailsHtml = '<p>暂无分模型用量数据。</p>';
+                }
+                modelUsageDetails.innerHTML = detailsHtml;
+                tokenUsageStatus.style.display = 'none';
+            } else {
+                showStatus(tokenUsageStatus, data.error || '获取用量失败', 'error');
+            }
+        } catch (error) {
+            showStatus(tokenUsageStatus, '网络错误: ' + error.message, 'error');
+        }
     }
     
     // 刷新单个token

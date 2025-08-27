@@ -2,10 +2,23 @@
 Configuration constants and settings for Qwen Code API Server
 """
 import os
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
 # 加载 .env 文件
 load_dotenv()
+
+# 时区设置
+TZ = os.getenv("TZ", "UTC")
+if TZ != "UTC":
+    # 设置时区环境变量
+    os.environ["TZ"] = TZ
+    try:
+        import time
+        time.tzset()
+    except (AttributeError, OSError):
+        # 在某些系统上可能不支持tzset()
+        pass
 
 # Server Configuration
 PORT = int(os.getenv("PORT", "8000"))

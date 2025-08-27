@@ -121,12 +121,17 @@ button:hover {
     color: #155724;
     border: 1px solid #c3e6cb;
 }
+.info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
 .error {
     background-color: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
 }
-.info {
+.status-info {
     background-color: #d1ecf1;
     color: #0c5460;
     border: 1px solid #bee5eb;
@@ -151,13 +156,13 @@ pre {
     color: #495057;
 }
 .token-card {
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
+    background-color: #f8f9fa; /* A very light grey for cards */
+    border: 1px solid #e9ecef; /* A slightly darker border to make it pop */
     border-top: 3px solid transparent;
     border-radius: 8px;
     padding: 12px;
     margin: 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     transition: all 0.3s ease, border-top-color 0.3s ease;
     box-sizing: border-box;
     width: 100%;
@@ -196,11 +201,16 @@ pre {
     overflow-wrap: break-word;
     max-width: 300px;
 }
+.token-header-badges {
+    display: flex;
+    gap: 5px;
+}
 .token-status {
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: bold;
+    white-space: nowrap;
 }
 .status-valid {
     background-color: #d4edda;
@@ -209,6 +219,15 @@ pre {
 .status-expired {
     background-color: #f8d7da;
     color: #721c24;
+}
+.status-usage {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
 }
 .token-details {
     font-size: 13px;
@@ -449,8 +468,113 @@ pre {
 }
 #token-status {
     margin-bottom: 15px;
-    background-color: #f8f9fa;
+    background-color: white;
     border-radius: 4px;
     padding: 15px;
     border: 1px solid #e9ecef;
+}
+
+.model-usage-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin-top: 10px;
+}
+
+.model-usage-list li {
+    background-color: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    border-left: 3px solid #2ecc71;
+}
+
+.usage-stats-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.usage-model-name {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #2c3e50;
+}
+
+.usage-stats-badges {
+    display: flex;
+    gap: 10px;
+}
+
+.status-tokens {
+    background-color: #f0f2f5;
+    color: #5a6470;
+}
+
+.status-calls {
+    background-color: #eaf5ff;
+    color: #2980b9;
+}
+
+.total-usage-badges, .token-summary-badges {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.total-usage-badges .token-status, .token-summary-badges .token-status {
+    padding: 10px 20px;
+    font-size: 16px;
+}
+
+.usage-date-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.usage-date-selector input[type="date"] {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+    min-width: 150px;
+    color: #333;
+    background-color: white;
+    transition: border-color 0.3s ease;
+}
+
+.usage-date-selector input[type="date"]:focus,
+.usage-date-selector input[type="date"]:hover {
+    border-color: #3498db;
+    outline: none;
+}
+
+.usage-date-selector button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: background-color 0.3s ease;
+}
+
+.usage-date-selector button:hover {
+    background-color: #2980b9;
+}
+
+.usage-date-selector button[style*="background-color: #e74c3c"] {
+    background-color: #e74c3c;
+}
+
+.usage-date-selector button[style*="background-color: #e74c3c"]:hover {
+    background-color: #c0392b;
 }
