@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 时区设置
-TZ = os.getenv("TZ", "UTC")
+TZ = os.getenv("TZ", "Asia/Shanghai")
 if TZ != "UTC":
     # 设置时区环境变量
     os.environ["TZ"] = TZ

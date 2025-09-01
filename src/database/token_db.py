@@ -2,47 +2,40 @@
 Database management for Qwen Code API Server
 """
 import sqlite3
-import os
+import time
 from typing import Dict
 from ..models import TokenData
 from ..config import DATABASE_URL, DATABASE_TABLE_NAME
 
-
 class TokenDatabase:
-    """SQLite database manager for token storage"""
+    """SQLite数据库管理器"""
     
     def __init__(self, db_path: str = DATABASE_URL):
         self.db_path = db_path
         self._ensure_directory_exists()
         self.init_db()
-        self._migrate_db() # Add migration logic
+        self._migrate_db()
+        self._cache = {}
+        self._cache_ttl = 60
     
     def _ensure_directory_exists(self):
-        """确保数据库文件的目录存在"""
+        """确保数据库目录存在"""
         db_dir = os.path.dirname(os.path.abspath(self.db_path))
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
 
     def _migrate_db(self):
-        """检查并更新数据库结构"""
+        """数据库迁移"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            # Migrate token_usage_stats table
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='token_usage_stats'")
             if cursor.fetchone():
                 cursor.execute("PRAGMA table_info(token_usage_stats)")
                 columns = [info[1] for info in cursor.fetchall()]
                 if 'call_count' not in columns:
                     cursor.execute("ALTER TABLE token_usage_stats ADD COLUMN call_count INTEGER DEFAULT 0")
-
-            # Migrate tokens table
-            cursor.execute(f"PRAGMA table_info({DATABASE_TABLE_NAME})")
-            columns = [info[1] for info in cursor.fetchall()]
-            if 'usage_count' not in columns:
-                cursor.execute(f"ALTER TABLE {DATABASE_TABLE_NAME} ADD COLUMN usage_count INTEGER NOT NULL DEFAULT 0")
-
             conn.commit()
-    
+
     def init_db(self):
         """初始化数据库表"""
         with sqlite3.connect(self.db_path) as conn:
@@ -57,7 +50,6 @@ class TokenDatabase:
                     usage_count INTEGER NOT NULL DEFAULT 0
                 )
             ''')
-            # Add a new table for token usage statistics
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS token_usage_stats (
                     date TEXT,
@@ -69,29 +61,47 @@ class TokenDatabase:
             ''')
             conn.commit()
     
+    def _get_cache_key(self, method: str, *args) -> str:
+        return f"{method}:{':'.join(str(arg) for arg in args)}"
+    
+    def _get_cached_result(self, key: str):
+        if key in self._cache:
+            cached = self._cache[key]
+            if time.time() - cached['timestamp'] < self._cache_ttl:
+                return cached['data']
+            del self._cache[key]
+        return None
+    
+    def _cache_result(self, key: str, result):
+        self._cache[key] = {'data': result, 'timestamp': time.time()}
+    
+    def _invalidate_cache(self):
+        self._cache.clear()
+
     def save_token(self, token_id: str, token_data: TokenData) -> None:
-        """保存token到数据库"""
+        """保存token"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'''
-                INSERT OR REPLACE INTO {DATABASE_TABLE_NAME} (id, access_token, refresh_token, expires_at, uploaded_at, usage_count)
+                INSERT OR REPLACE INTO {DATABASE_TABLE_NAME} 
+                (id, access_token, refresh_token, expires_at, uploaded_at, usage_count)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                token_id,
-                token_data.access_token,
-                token_data.refresh_token,
-                token_data.expires_at,
-                token_data.uploaded_at,
-                token_data.usage_count
-            ))
+            ''', (token_id, token_data.access_token, token_data.refresh_token, 
+                  token_data.expires_at, token_data.uploaded_at, token_data.usage_count))
             conn.commit()
-    
+        self._invalidate_cache()
+
     def load_all_tokens(self) -> Dict[str, TokenData]:
-        """从数据库加载所有token"""
+        """加载所有token（带缓存）"""
+        cache_key = self._get_cache_key("load_all_tokens")
+        cached = self._get_cached_result(cache_key)
+        if cached:
+            return cached
+        
         tokens = {}
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute(f'SELECT id, access_token, refresh_token, expires_at, uploaded_at, usage_count FROM {DATABASE_TABLE_NAME}')
+            cursor.execute(f'SELECT * FROM {DATABASE_TABLE_NAME}')
             for row in cursor.fetchall():
                 token_id, access_token, refresh_token, expires_at, uploaded_at, usage_count = row
                 tokens[token_id] = TokenData(
@@ -101,24 +111,28 @@ class TokenDatabase:
                     uploaded_at=uploaded_at,
                     usage_count=usage_count
                 )
+        
+        self._cache_result(cache_key, tokens)
         return tokens
-    
+
     def delete_token(self, token_id: str) -> None:
-        """删除单个token"""
+        """删除token"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'DELETE FROM {DATABASE_TABLE_NAME} WHERE id = ?', (token_id,))
             conn.commit()
-    
+        self._invalidate_cache()
+
     def delete_all_tokens(self) -> None:
         """删除所有token"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'DELETE FROM {DATABASE_TABLE_NAME}')
             conn.commit()
+        self._invalidate_cache()
 
     def update_token_usage(self, date: str, model_name: str, tokens: int):
-        """更新或插入token使用量和调用次数"""
+        """更新token用量"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -126,40 +140,52 @@ class TokenDatabase:
                 VALUES (?, ?, ?, 1)
                 ON CONFLICT(date, model_name) DO UPDATE SET 
                     total_tokens = total_tokens + excluded.total_tokens,
-                    call_count = call_count + 1;
+                    call_count = call_count + 1
             ''', (date, model_name, tokens))
             conn.commit()
+        self._invalidate_cache()
 
     def get_usage_stats(self, date: str) -> Dict:
-        """获取指定日期的token使用统计"""
+        """获取用量统计（带缓存）"""
+        cache_key = self._get_cache_key("get_usage_stats", date)
+        cached = self._get_cached_result(cache_key)
+        if cached:
+            return cached
+        
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT model_name, total_tokens, call_count FROM token_usage_stats WHERE date = ?', (date,))
+            cursor.execute('SELECT * FROM token_usage_stats WHERE date = ?', (date,))
             rows = cursor.fetchall()
             
-            total_tokens_today = sum(row[1] for row in rows)
-            total_calls_today = sum(row[2] for row in rows)
-            models = {row[0]: {"total_tokens": row[1], "call_count": row[2]} for row in rows}
+            total_tokens = sum(row[2] for row in rows)
+            total_calls = sum(row[3] for row in rows)
+            models = {row[1]: {"total_tokens": row[2], "call_count": row[3]} for row in rows}
             
-            return {
+            result = {
                 "date": date,
-                "total_tokens_today": total_tokens_today,
-                "total_calls_today": total_calls_today,
+                "total_tokens_today": total_tokens,
+                "total_calls_today": total_calls,
                 "models": models
             }
+            
+            self._cache_result(cache_key, result)
+            return result
 
-    def increment_token_usage_count(self, token_id: str):
-        """Increments the usage count for a specific token."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"UPDATE {DATABASE_TABLE_NAME} SET usage_count = usage_count + 1 WHERE id = ?", (token_id,))
-            conn.commit()
-
-    def delete_usage_stats(self, date: str):
-        """删除指定日期的用量统计数据"""
+    def delete_usage_stats(self, date: str) -> int:
+        """删除用量统计"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM token_usage_stats WHERE date = ?', (date,))
             deleted_count = cursor.rowcount
             conn.commit()
-            return deleted_count
+        self._invalidate_cache()
+        return deleted_count
+
+    def increment_token_usage_count(self, token_id: str):
+        """增加token使用计数"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE {DATABASE_TABLE_NAME} SET usage_count = usage_count + 1 WHERE id = ?", (token_id,))
+            conn.commit()
+
+import os

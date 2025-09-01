@@ -11,10 +11,8 @@ from src.config.settings import PORT, HOST, DEBUG
 from src.api import api_router, openai_router
 from src.web import web_router
 
-# 创建FastAPI应用
 app = FastAPI(title="Qwen Code API Server", description="Qwen Code API Server with FastAPI")
 
-# 添加CORS中间件
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,12 +21,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 挂载静态文件
 static_path = os.path.join(os.path.dirname(__file__), '..', 'static')
 if os.path.exists(static_path):
     app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-# 注册路由
 app.include_router(web_router, tags=["Web Interface"])
 app.include_router(api_router, prefix="/api", tags=["API"])
 app.include_router(openai_router, tags=["OpenAI API"])
