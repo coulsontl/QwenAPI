@@ -84,6 +84,9 @@ QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
 QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
 QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
 QWEN_OAUTH_SCOPE=openid profile email model.completion
+
+# 自动刷新配置（秒，默认4小时=14400秒）
+TOKEN_REFRESH_INTERVAL=14400
 ```
 
 ## 📖 使用指南
@@ -274,7 +277,7 @@ find src -name "*.py" -exec python -m py_compile {} \;
 
 ## 📄 许可证
 
-本项目采用 [MIT许可证](LICENSE) - 查看 [LICENSE](LICENSE) 文件了解详情。
+本项目采用 MIT 许可证
 
 ## 🙋‍♂️ 支持与反馈
 

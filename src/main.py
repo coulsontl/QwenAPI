@@ -3,12 +3,75 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 
 from src.config.settings import PORT, HOST, DEBUG
 from src.api import api_router, openai_router
 from src.web import web_router
+from src.oauth import TokenManager
+from src.database import TokenDatabase
+from src.config.settings import os
 
-app = FastAPI(title="Qwen Code API Server")
+# 设置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 全局变量
+_db = TokenDatabase()
+_token_manager = TokenManager(_db)
+_refresh_task = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时加载token
+    _token_manager.load_tokens()
+    
+    # 启动自动刷新任务
+    global _refresh_task
+    _refresh_task = asyncio.create_task(auto_refresh_tokens())
+    logger.info("自动Token刷新任务已启动，每4小时执行一次")
+    
+    yield
+    
+    # 关闭时清理任务
+    if _refresh_task:
+        _refresh_task.cancel()
+        try:
+            await _refresh_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("自动Token刷新任务已停止")
+
+async def auto_refresh_tokens():
+    """自动刷新所有token"""
+    refresh_interval = int(os.getenv('TOKEN_REFRESH_INTERVAL', '14400'))  # 默认4小时
+    
+    while True:
+        try:
+            await asyncio.sleep(refresh_interval)
+            
+            _token_manager.load_tokens()
+            if _token_manager.token_store:
+                logger.info(f"开始自动刷新所有token（间隔：{refresh_interval}秒）...")
+                result = await _token_manager.refresh_all_tokens()
+                
+                success_count = sum(1 for r in result['refreshResults'] if r['success'])
+                total_count = len(result['refreshResults'])
+                
+                logger.info(f"自动刷新完成: 成功 {success_count}/{total_count}")
+            else:
+                logger.info("没有token需要刷新")
+                
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"自动刷新token失败: {e}")
+            await asyncio.sleep(300)  # 出错后5分钟重试
+
+app = FastAPI(title="Qwen Code API Server", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -84,6 +84,9 @@ QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
 QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
 QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
 QWEN_OAUTH_SCOPE=openid profile email model.completion
+
+# Auto refresh configuration (seconds, default 4 hours = 14400 seconds)
+TOKEN_REFRESH_INTERVAL=14400
 ```
 
 ## 📖 Usage Guide
@@ -274,7 +277,7 @@ find src -name "*.py" -exec python -m py_compile {} \;
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License
 
 ## 🙋‍♂️ Support & Feedback
 
