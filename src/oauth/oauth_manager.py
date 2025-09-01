@@ -16,18 +16,14 @@ from ..config import (
 
 
 class OAuthManager:
-    """OAuth2 device code authentication manager"""
     
     def __init__(self):
         self.oauth_states: Dict[str, OAuthState] = {}
     
     async def init_oauth(self) -> Dict[str, Any]:
-        """初始化OAuth设备授权"""
         try:
-            # 生成PKCE对
             code_verifier, code_challenge = await generate_pkce_pair()
             
-            # 请求设备授权
             async with aiohttp.ClientSession() as session:
                 data = aiohttp.FormData()
                 data.add_field('client_id', QWEN_OAUTH_CLIENT_ID)
@@ -45,7 +41,6 @@ class OAuthManager:
                     if 'error' in result:
                         raise Exception(f'Device authorization failed: {result["error"]} - {result.get("error_description", "")}')
                     
-                    # 创建OAuth状态
                     auth_state = OAuthState(
                         device_code=result['device_code'],
                         user_code=result['user_code'],
@@ -56,7 +51,6 @@ class OAuthManager:
                         poll_interval=result.get('interval', 2)
                     )
                     
-                    # 生成状态ID并存储
                     state_id = generate_state_id()
                     self.oauth_states[state_id] = auth_state
                     
@@ -73,19 +67,18 @@ class OAuthManager:
             raise Exception(f'OAuth初始化失败: {str(error)}')
     
     async def poll_oauth_status(self, state_id: str) -> Dict[str, Any]:
-        """轮询OAuth认证状态"""
         state = self.oauth_states.get(state_id)
         if not state:
             raise Exception("无效的stateId")
         
         # 检查是否过期
         now = int(time.time() * 1000)
-        if state.expires_at and now > state.expires_at + 10000:  # 增加10秒缓冲时间
+        if state.expires_at and now > state.expires_at + 10000:
             self.oauth_states.pop(state_id, None)
             raise Exception("设备授权码已过期")
         
         # 如果接近过期，提醒用户
-        if state.expires_at and now > state.expires_at - 60000:  # 剩余1分钟时提醒
+        if state.expires_at and now > state.expires_at - 60000:
             return {
                 'success': False,
                 'status': 'pending',
@@ -106,7 +99,6 @@ class OAuthManager:
                         try:
                             error_data = await response.json()
                             
-                            # 处理标准 OAuth 错误
                             if response.status == 400 and error_data.get('error') == 'authorization_pending':
                                 return {
                                     'success': False,
@@ -122,7 +114,6 @@ class OAuthManager:
                                     'remainingTime': max(0, int((state.expires_at - now) / 1000)) if state.expires_at else 0
                                 }
                             
-                            # 其他错误
                             raise Exception(f'Device token poll failed: {error_data.get("error")} - {error_data.get("error_description", "")}')
                         except:
                             error_text = await response.text()
@@ -130,7 +121,6 @@ class OAuthManager:
                     
                     token_response = await response.json()
                     
-                    # 转换为 TokenData 格式
                     token_data = TokenData(
                         access_token=token_response['access_token'],
                         refresh_token=token_response['refresh_token'],
@@ -138,7 +128,6 @@ class OAuthManager:
                         uploaded_at=int(time.time() * 1000)
                     )
                     
-                    # 清理OAuth状态
                     self.oauth_states.pop(state_id, None)
                     
                     return {
@@ -147,19 +136,16 @@ class OAuthManager:
                         'message': '认证成功'
                     }
         except Exception as error:
-            # 检查是否是超时或设备码过期错误
             if any(keyword in str(error).lower() for keyword in ['timed out', 'expired', 'invalid', '401']):
                 self.oauth_states.pop(state_id, None)
                 raise Exception(str(error))
             else:
-                # 其他错误继续轮询
                 return {
                     'success': False,
                     'status': 'pending'
                 }
     
     def cancel_oauth(self, state_id: str) -> Dict[str, Any]:
-        """取消OAuth认证"""
         if state_id:
             self.oauth_states.pop(state_id, None)
         

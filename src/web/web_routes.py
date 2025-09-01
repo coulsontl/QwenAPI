@@ -8,13 +8,11 @@ import os
 
 router = APIRouter()
 
-# 配置静态文件服务
 static_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static')
 
 
 @router.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    """返回主页面"""
     template_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'templates', 'index.html')
     
     try:

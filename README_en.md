@@ -1,215 +1,116 @@
 # Qwen API Server
 
-FastAPI server providing Qwen model API interface, compatible with OpenAI API format.
+🚀 **Qwen Code API Server** - FastAPI-based Qwen model API server, fully compatible with OpenAI API format
 
-[English Version](README_en.md) | [中文版本](README.md)
+[中文版本](README.md) | English Version
 
-## Features
+## ✨ Features
 
-- 🔐 Password-protected access
-- 📁 Support for uploading oauth_creds.json files
-- 🔑 OAuth device code authorization login
-- 💬 OpenAI-compatible API interface
-- 🔄 Automatic token refresh
-- 📊 Token status management
-- 💾 SQLite persistent storage
-- 🌐 Web management interface
-- 🏗️ Modular architecture design
-- 🐳 Docker deployment support
-- 🌍 Multi-timezone support
+- 🔐 **Password Protected Access** - Environment variable configurable access control
+- 🔑 **OAuth Device Code Authorization** - One-click token acquisition and refresh
+- 💬 **OpenAI Compatible API** - 100% compatible with OpenAI clients
+- 🔄 **Automatic Token Management** - Intelligent token refresh and status monitoring
+- 📊 **Real-time Usage Statistics** - API call statistics by date
+- 🐳 **Dockerized Deployment** - Support for Docker and Docker Compose
+- 🌐 **Web Management Interface** - Intuitive token management interface
+- 🏗️ **Modular Architecture** - Clear code structure, easy to extend
+- 📈 **Performance Optimization** - Streaming response deduplication, reduced bandwidth usage
 
-## System Requirements
+## 🚀 Quick Start
 
-- Python 3.8+
-- pip package manager
-
-## Installation and Running
-
-### Method 1: Using Run Scripts (Recommended)
-
-#### Linux/macOS
+### Method 1: One-click Start (Recommended)
 
 ```bash
-# Clone or download the project
+# Clone the project
+git clone https://github.com/Water008/QwenAPI.git
 cd QwenAPI
 
-# Run the script
-./run.sh
+# One-click start (auto creates virtual environment)
+./run.sh          # Linux/macOS
+run.bat           # Windows
 ```
 
-#### Windows
-
-```cmd
-# Clone or download the project
-cd QwenAPI
-
-# Run the script
-run.bat
-```
-
-### Method 2: Manual Installation
+### Method 2: Docker Deployment
 
 ```bash
-# 1. Create virtual environment
-python3 -m venv venv
+# Using Docker Compose (Recommended)
+docker-compose up -d
 
-# Activate virtual environment on Linux/macOS
-source venv/bin/activate
-
-# Activate virtual environment on Windows
-venv\Scripts\activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Run the server
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Method 3: Using Docker (Recommended)
-
-```bash
-# Use pre-built image
+# Or using Docker command
 docker run -d \
   --name qwen-api \
   -p 8000:8000 \
   -e API_PASSWORD=your_secure_password \
+  -v $(pwd)/data:/app/data \
   ghcr.io/water008/qwenapi:latest
-
-# Or use docker-compose
-docker-compose up -d
 ```
 
-Docker image URL: `ghcr.io/water008/qwenapi:latest`
+### Method 3: Manual Installation
 
-### Environment Variable Configuration
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate   # Windows
 
-Two methods are supported for configuring environment variables:
+# Install dependencies
+pip install -r requirements.txt
 
-#### Method 1: Using .env file (Recommended)
+# Start service
+uvicorn src.main:app --host 0.0.0.0 --port 8000
+```
 
-1. Copy the example file:
+## ⚙️ Configuration
+
+### Environment Variables
+
+Create `.env` file (recommended):
+
 ```bash
 cp .env.example .env
 ```
 
-2. Edit the `.env` file:
+Edit `.env` file:
 ```bash
-# Server configuration
-PORT=8000
-HOST=0.0.0.0
-API_PASSWORD=your_secure_password
-DATABASE_URL=data/tokens.db
-DEBUG=false
+# Server Configuration
+PORT=8000                    # Service port
+HOST=0.0.0.0                # Listen address
+API_PASSWORD=qwen123        # Access password (must change)
+DATABASE_URL=data/tokens.db # Database path
+DEBUG=false                 # Debug mode
 
-# OAuth2 configuration
+# Qwen API Configuration
+QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
 QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
 QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
 QWEN_OAUTH_SCOPE=openid profile email model.completion
-QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
-
-# Timezone configuration
-TZ=UTC
 ```
 
-#### Method 2: Direct Environment Variable Setting
+## 📖 Usage Guide
 
-##### Linux/macOS
+### 1. Get Access
 
-```bash
-export PORT=8000              # Server port
-export HOST=0.0.0.0          # Listening address
-export API_PASSWORD=yourpass  # Access password
-export DATABASE_URL=data/tokens.db # Database file path
-export DEBUG=false           # Debug mode
-export TZ=UTC                # Timezone setting
-```
+Visit http://localhost:8000 and enter your configured password to login.
 
-##### Windows
+### 2. Get Token
 
-```cmd
-set PORT=8000
-set HOST=0.0.0.0
-set API_PASSWORD=yourpass
-set DATABASE_URL=data/tokens.db
-set DEBUG=false
-set TZ=UTC
-```
+**Method A: OAuth Authorization (Recommended)**
+1. Click "OAuth Login to Get Token"
+2. Scan QR code or visit link to complete authorization
+3. System automatically saves token
 
-## Usage
+**Method B: Manual Upload**
+1. Prepare oauth_creds.json file
+2. Upload file in web interface
+3. System automatically parses and saves
 
-### Quick Test
+### 3. Test API
 
-```bash
-# Test if the code runs properly
-python -c "import src.main; print('✅ Code import successful')"
-
-# Start the server
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Detailed Steps
-
-1. After starting the server, visit http://localhost:8000
-2. Enter the password (default: qwen123)
-3. Use either of the following methods to get a token:
-   - Click "OAuth Login to Get Token" for authorization
-   - Upload the local oauth_creds.json file
-4. Test functionality in the API test area
-
-### Using Python Package Installation
-
-```bash
-# Install the package
-pip install -e .
-
-# Run the server
-qwen-api-server
-```
-
-## API Endpoints
-
-### OpenAI Compatible Interface
-
-The server is fully compatible with OpenAI API format and can be directly used with various OpenAI clients.
-
-#### Chat Completions
-
-```bash
-# Standard format
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer yourpassword" \
-  -d '{
-    "model": "qwen3-coder-plus",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'
-
-# Support for streaming output
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer yourpassword" \
-  -d '{
-    "model": "qwen3-coder-plus",
-    "messages": [{"role": "user", "content": "Hello"}],
-    "stream": true
-  }'
-```
-
-#### Models
-
-```bash
-# Get available model list
-curl -X GET http://localhost:8000/v1/models \
-  -H "Authorization: Bearer yourpassword"
-```
-
-#### Usage Example
+#### Using OpenAI Client
 
 ```python
 import openai
 
-# Configure OpenAI client
 client = openai.OpenAI(
     api_key="yourpassword",
     base_url="http://localhost:8000/v1"
@@ -219,35 +120,30 @@ client = openai.OpenAI(
 response = client.chat.completions.create(
     model="qwen3-coder-plus",
     messages=[
-        {"role": "user", "content": "Hello, please write a Python function to calculate Fibonacci sequence"}
+        {"role": "user", "content": "Please write a Python quicksort algorithm"}
     ]
 )
-
 print(response.choices[0].message.content)
+
+# Streaming output
+response = client.chat.completions.create(
+    model="qwen3-coder-plus",
+    messages=[{"role": "user", "content": "Tell me a joke"}],
+    stream=True
+)
+for chunk in response:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
 ```
 
-### Native API Endpoints
+#### Native API Calls
 
 ```bash
-# Login
-curl -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"password": "yourpassword"}'
-
-# Upload token
-curl -X POST http://localhost:8000/api/upload-token \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer yourpassword" \
-  -d '{
-    "access_token": "...",
-    "refresh_token": "..."
-  }'
-
 # Get token status
 curl -X GET http://localhost:8000/api/token-status \
   -H "Authorization: Bearer yourpassword"
 
-# Chat
+# Chat API
 curl -X POST http://localhost:8000/api/chat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer yourpassword" \
@@ -255,72 +151,136 @@ curl -X POST http://localhost:8000/api/chat \
     "messages": [{"role": "user", "content": "Hello"}],
     "model": "qwen3-coder-plus"
   }'
+
+# Streaming chat
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer yourpassword" \
+  -d '{
+    "messages": [{"role": "user", "content": "Hello"}],
+    "model": "qwen3-coder-plus",
+    "stream": true
+  }'
 ```
 
-## Database
+## 📊 API Documentation
 
-The project uses SQLite database to store token information, with the default database file being `data/tokens.db`.
+### OpenAI Compatible Endpoints
 
-Database structure:
-```sql
-CREATE TABLE tokens (
-    id TEXT PRIMARY KEY,           -- First 8 characters of refresh_token
-    access_token TEXT NOT NULL,    -- Access token
-    refresh_token TEXT NOT NULL,   -- Refresh token
-    expires_at INTEGER,            -- Expiration timestamp
-    uploaded_at INTEGER            -- Upload timestamp
-);
+| Endpoint | Method | Description |
+|---|---|---|
+| `/v1/chat/completions` | POST | Chat completions |
+| `/v1/models` | GET | Get available models |
+
+### Native API Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/login` | POST | User login |
+| `/api/upload-token` | POST | Upload token |
+| `/api/token-status` | GET | Token status |
+| `/api/refresh-token` | POST | Refresh all tokens |
+| `/api/chat` | POST | Chat API |
+| `/api/health` | GET | Health check |
+| `/api/metrics` | GET | Performance metrics |
+
+## 🐳 Docker Usage
+
+### Using Pre-built Image (Recommended)
+
+```bash
+# Run pre-built image directly
+docker run -d \
+  --name qwen-api \
+  -p 8000:8000 \
+  -e API_PASSWORD=your_secure_password \
+  -v $(pwd)/data:/app/data \
+  ghcr.io/water008/qwenapi:latest
+
+# Using Docker Compose
+docker-compose up -d
 ```
 
-## Project Structure
+### Local Build (Optional)
+
+```bash
+# Build image locally
+docker build -t qwen-api .
+
+# Run locally built image
+docker run -d \
+  --name qwen-api \
+  -p 8000:8000 \
+  -e API_PASSWORD=yourpassword \
+  -v $(pwd)/data:/app/data \
+  qwen-api
+```
+
+## 🔧 Development Guide
+
+### Project Structure
 
 ```
 QwenAPI/
 ├── src/
-│   ├── main.py              # Main application entry point
+│   ├── main.py              # Main application entry
 │   ├── api/                 # API routes
-│   │   ├── routes.py        # Native API routes
-│   │   └── openai_routes.py # OpenAI compatible API routes
 │   ├── auth/                # Authentication module
-│   │   └── auth.py          # Password authentication
-│   ├── config/              # Configuration module
-│   │   └── settings.py      # Environment variable configuration
-│   ├── database/            # Database module
-│   │   └── token_db.py      # Token database operations
+│   ├── config/              # Configuration management
+│   ├── database/            # Database operations
 │   ├── models/              # Data models
-│   │   └── data_models.py   # Data model definitions
-│   ├── oauth/               # OAuth module
-│   │   ├── oauth_manager.py # OAuth management
-│   │   └── token_manager.py # Token management
-│   ├── utils/               # Utility module
-│   │   ├── helpers.py       # Helper functions
-│   │   └── timezone_utils.py # Timezone utility functions
+│   ├── oauth/               # OAuth authentication
+│   ├── utils/               # Utility functions
 │   └── web/                 # Web interface
-│       └── web_routes.py    # Web routes
-├── static/                  # Static files
-│   ├── script.js           # JavaScript files
-│   └── style.css           # CSS files
-├── templates/              # Template files
-│   └── index.html          # Main page
-├── data/                   # Data directory
-│   └── tokens.db           # SQLite database
-├── requirements.txt        # Python dependencies
-├── setup.py               # Package installation configuration
-├── docker-compose.yml     # Docker Compose configuration
-├── run.sh                 # Linux/macOS startup script
-├── run.bat                # Windows startup script
-├── README.md              # Project documentation (Chinese)
-└── README_en.md           # Project documentation (English)
+├── static/                  # Static resources
+├── templates/               # HTML templates
+├── data/                    # Data storage
+├── requirements.txt         # Dependencies list
+├── Dockerfile              # Docker configuration
+├── docker-compose.yml      # Docker Compose configuration
+├── run.sh                  # Linux startup script
+├── run.bat                 # Windows startup script
+└── .env.example            # Environment variables example
 ```
 
-## Notes
+### Development Environment
 
-- Please keep your API password secure
-- Token data is stored in the local database, please ensure the database file is secure
-- It is recommended to use strong passwords and set them through environment variables in production environments
-- Ensure the `data` directory exists and is writable for storing the SQLite database
-- Virtual environment will be created and activated automatically, no manual operation required
+```bash
+# Install development dependencies
+pip install -r requirements.txt
 
-## License
+# Run development server
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
-This project is licensed under the MIT License.
+# Code check
+find src -name "*.py" -exec python -m py_compile {} \;
+```
+
+## 🚨 Important Notes
+
+- **Security First**: Always change the default password
+- **Data Backup**: Regularly backup `data/tokens.db` database
+- **Environment Isolation**: Use Docker for production deployment
+- **Log Monitoring**: Monitor application logs and performance metrics
+- **Token Security**: Token information is encrypted and stored, do not leak
+
+## 🤝 Contributing
+
+1. Fork this project
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Create Pull Request
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
+
+## 🙋‍♂️ Support & Feedback
+
+- **Issues**: [GitHub Issues](https://github.com/Water008/QwenAPI/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Water008/QwenAPI/discussions)
+
+---
+
+**⭐ If this project helps you, please give it a star!**

@@ -1,215 +1,116 @@
 # Qwen API Server
 
-FastAPI 服务器，提供 Qwen 模型的 API 接口，兼容 OpenAI API 格式。
+🚀 **Qwen Code API Server** - 基于FastAPI的Qwen模型API服务器，完全兼容OpenAI API格式
 
-[English Version](README_en.md) | [中文版本](README.md)
+[English Version](README_en.md) | 中文版本
 
-## 功能特性
+## ✨ 功能特性
 
-- 🔐 密码保护访问
-- 📁 支持上传 oauth_creds.json 文件
-- 🔑 OAuth 设备码授权登录
-- 💬 OpenAI 兼容的 API 接口
-- 🔄 自动 token 刷新
-- 📊 Token 状态管理
-- 💾 SQLite 持久化存储
-- 🌐 Web 管理界面
-- 🏗️ 模块化架构设计
-- 🐳 Docker 支持部署
-- 🌍 多时区支持
+- 🔐 **密码保护访问** - 支持环境变量配置的访问控制
+- 🔑 **OAuth设备码授权** - 一键获取和刷新Token
+- 💬 **OpenAI兼容API** - 100%兼容OpenAI客户端
+- 🔄 **自动Token管理** - 智能Token刷新和状态监控
+- 📊 **实时用量统计** - 按日期统计API调用量
+- 🐳 **Docker化部署** - 支持Docker和Docker Compose
+- 🌐 **Web管理界面** - 直观的Token管理界面
+- 🏗️ **模块化架构** - 清晰的代码结构，易于扩展
+- 📈 **性能优化** - 流式响应去重，减少带宽消耗
 
-## 系统要求
+## 🚀 快速开始
 
-- Python 3.8+
-- pip 包管理器
-
-## 安装和运行
-
-### 方式一：使用运行脚本（推荐）
-
-#### Linux/macOS
+### 方式一：一键启动（推荐）
 
 ```bash
-# 克隆或下载项目
+# 克隆项目
+git clone https://github.com/Water008/QwenAPI.git
 cd QwenAPI
 
-# 运行脚本
-./run.sh
+# 一键启动（自动创建虚拟环境）
+./run.sh          # Linux/macOS
+run.bat           # Windows
 ```
 
-#### Windows
-
-```cmd
-# 克隆或下载项目
-cd QwenAPI
-
-# 运行脚本
-run.bat
-```
-
-### 方式二：手动安装
+### 方式二：Docker部署
 
 ```bash
-# 1. 创建虚拟环境
-python3 -m venv venv
+# 使用Docker Compose（推荐）
+docker-compose up -d
 
-# Linux/macOS 激活虚拟环境
-source venv/bin/activate
-
-# Windows 激活虚拟环境
-venv\Scripts\activate
-
-# 2. 安装依赖
-pip install -r requirements.txt
-
-# 3. 运行服务器
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### 方式三：使用 Docker（推荐）
-
-```bash
-# 使用预构建镜像
+# 或使用Docker命令
 docker run -d \
   --name qwen-api \
   -p 8000:8000 \
   -e API_PASSWORD=your_secure_password \
+  -v $(pwd)/data:/app/data \
   ghcr.io/water008/qwenapi:latest
-
-# 或使用 docker-compose
-docker-compose up -d
 ```
 
-Docker 镜像地址：`ghcr.io/water008/qwenapi:latest`
+### 方式三：手动安装
+
+```bash
+# 创建虚拟环境
+python3 -m venv venv
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate   # Windows
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 启动服务
+uvicorn src.main:app --host 0.0.0.0 --port 8000
+```
+
+## ⚙️ 配置说明
 
 ### 环境变量配置
 
-支持两种方式配置环境变量：
+创建 `.env` 文件（推荐）：
 
-#### 方式一：使用 .env 文件（推荐）
-
-1. 复制示例文件：
 ```bash
 cp .env.example .env
 ```
 
-2. 编辑 `.env` 文件：
+编辑 `.env` 文件：
 ```bash
 # 服务器配置
-PORT=8000
-HOST=0.0.0.0
-API_PASSWORD=your_secure_password
-DATABASE_URL=data/tokens.db
-DEBUG=false
+PORT=8000                    # 服务端口
+HOST=0.0.0.0                # 监听地址
+API_PASSWORD=qwen123        # 访问密码（务必修改）
+DATABASE_URL=data/tokens.db # 数据库路径
+DEBUG=false                 # 调试模式
 
-# OAuth2 配置
+# Qwen API配置
+QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
 QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
 QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
 QWEN_OAUTH_SCOPE=openid profile email model.completion
-QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
-
-# 时区配置
-TZ=UTC
 ```
 
-#### 方式二：直接设置环境变量
+## 📖 使用指南
 
-##### Linux/macOS
+### 1. 获取访问权限
 
-```bash
-export PORT=8000              # 服务器端口
-export HOST=0.0.0.0          # 监听地址
-export API_PASSWORD=yourpass  # 访问密码
-export DATABASE_URL=data/tokens.db # 数据库文件路径
-export DEBUG=false           # 调试模式
-export TZ=UTC                # 时区设置
-```
+访问 http://localhost:8000，输入配置的密码登录。
 
-##### Windows
+### 2. 获取Token
 
-```cmd
-set PORT=8000
-set HOST=0.0.0.0
-set API_PASSWORD=yourpass
-set DATABASE_URL=data/tokens.db
-set DEBUG=false
-set TZ=UTC
-```
+**方式A：OAuth授权（推荐）**
+1. 点击"OAuth登录获取Token"
+2. 扫描二维码或访问链接完成授权
+3. 系统自动保存Token
 
-## 使用方法
+**方式B：手动上传**
+1. 准备oauth_creds.json文件
+2. 在Web界面上传文件
+3. 系统自动解析并保存
 
-### 快速测试
+### 3. 测试API
 
-```bash
-# 测试代码是否能正常运行
-python -c "import src.main; print('✅ 代码导入成功')"
-
-# 启动服务器
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### 详细步骤
-
-1. 启动服务器后，访问 http://localhost:8000
-2. 输入密码（默认：qwen123）
-3. 使用以下任一方式获取 token：
-   - 点击"OAuth 登录获取 Token"进行授权
-   - 上传本地的 oauth_creds.json 文件
-4. 在 API 测试区域测试功能
-
-### 使用 Python 包安装
-
-```bash
-# 安装包
-pip install -e .
-
-# 运行服务器
-qwen-api-server
-```
-
-## API 接口
-
-### OpenAI 兼容接口
-
-服务器完全兼容 OpenAI API 格式，可以直接用于各种 OpenAI 客户端。
-
-#### 聊天完成 (Chat Completions)
-
-```bash
-# 标准格式
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer yourpassword" \
-  -d '{
-    "model": "qwen3-coder-plus",
-    "messages": [{"role": "user", "content": "你好"}]
-  }'
-
-# 支持流式输出
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer yourpassword" \
-  -d '{
-    "model": "qwen3-coder-plus",
-    "messages": [{"role": "user", "content": "你好"}],
-    "stream": true
-  }'
-```
-
-#### 模型列表 (Models)
-
-```bash
-# 获取可用模型列表
-curl -X GET http://localhost:8000/v1/models \
-  -H "Authorization: Bearer yourpassword"
-```
-
-#### 使用示例
+#### OpenAI客户端使用
 
 ```python
 import openai
 
-# 配置 OpenAI 客户端
 client = openai.OpenAI(
     api_key="yourpassword",
     base_url="http://localhost:8000/v1"
@@ -219,35 +120,30 @@ client = openai.OpenAI(
 response = client.chat.completions.create(
     model="qwen3-coder-plus",
     messages=[
-        {"role": "user", "content": "你好，请写一个Python函数来计算斐波那契数列"}
+        {"role": "user", "content": "请写一个Python快速排序算法"}
     ]
 )
-
 print(response.choices[0].message.content)
+
+# 流式输出
+response = client.chat.completions.create(
+    model="qwen3-coder-plus",
+    messages=[{"role": "user", "content": "讲个笑话"}],
+    stream=True
+)
+for chunk in response:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
 ```
 
-### 原生 API 接口
+#### 原生API调用
 
 ```bash
-# 登录
-curl -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"password": "yourpassword"}'
-
-# 上传 token
-curl -X POST http://localhost:8000/api/upload-token \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer yourpassword" \
-  -d '{
-    "access_token": "...",
-    "refresh_token": "..."
-  }'
-
-# 获取 token 状态
+# 获取Token状态
 curl -X GET http://localhost:8000/api/token-status \
   -H "Authorization: Bearer yourpassword"
 
-# 聊天
+# 聊天API
 curl -X POST http://localhost:8000/api/chat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer yourpassword" \
@@ -255,72 +151,136 @@ curl -X POST http://localhost:8000/api/chat \
     "messages": [{"role": "user", "content": "你好"}],
     "model": "qwen3-coder-plus"
   }'
+
+# 流式聊天
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer yourpassword" \
+  -d '{
+    "messages": [{"role": "user", "content": "你好"}],
+    "model": "qwen3-coder-plus",
+    "stream": true
+  }'
 ```
 
-## 数据库
+## 📊 API接口文档
 
-项目使用 SQLite 数据库存储 token 信息，数据库文件默认为 `data/tokens.db`。
+### OpenAI兼容接口
 
-数据库结构：
-```sql
-CREATE TABLE tokens (
-    id TEXT PRIMARY KEY,           -- refresh_token 的前8位
-    access_token TEXT NOT NULL,    -- 访问令牌
-    refresh_token TEXT NOT NULL,   -- 刷新令牌
-    expires_at INTEGER,            -- 过期时间戳
-    uploaded_at INTEGER            -- 上传时间戳
-);
+| 端点 | 方法 | 描述 |
+|---|---|---|
+| `/v1/chat/completions` | POST | 聊天完成 |
+| `/v1/models` | GET | 获取模型列表 |
+
+### 原生API接口
+
+| 端点 | 方法 | 描述 |
+|---|---|---|
+| `/api/login` | POST | 用户登录 |
+| `/api/upload-token` | POST | 上传Token |
+| `/api/token-status` | GET | Token状态 |
+| `/api/refresh-token` | POST | 刷新所有Token |
+| `/api/chat` | POST | 聊天API |
+| `/api/health` | GET | 健康检查 |
+| `/api/metrics` | GET | 性能指标 |
+
+## 🐳 Docker使用
+
+### 使用预构建镜像（推荐）
+
+```bash
+# 直接运行预构建镜像
+docker run -d \
+  --name qwen-api \
+  -p 8000:8000 \
+  -e API_PASSWORD=your_secure_password \
+  -v $(pwd)/data:/app/data \
+  ghcr.io/water008/qwenapi:latest
+
+# 使用Docker Compose
+docker-compose up -d
 ```
 
-## 项目结构
+### 本地构建（可选）
+
+```bash
+# 本地构建镜像
+docker build -t qwen-api .
+
+# 运行本地构建的镜像
+docker run -d \
+  --name qwen-api \
+  -p 8000:8000 \
+  -e API_PASSWORD=yourpassword \
+  -v $(pwd)/data:/app/data \
+  qwen-api
+```
+
+## 🔧 开发指南
+
+### 项目结构
 
 ```
 QwenAPI/
 ├── src/
 │   ├── main.py              # 主应用入口
-│   ├── api/                 # API 路由
-│   │   ├── routes.py        # 原生 API 路由
-│   │   └── openai_routes.py # OpenAI 兼容 API 路由
+│   ├── api/                 # API路由
 │   ├── auth/                # 认证模块
-│   │   └── auth.py          # 密码认证
-│   ├── config/              # 配置模块
-│   │   └── settings.py      # 环境变量配置
-│   ├── database/            # 数据库模块
-│   │   └── token_db.py      # Token 数据库操作
+│   ├── config/              # 配置管理
+│   ├── database/            # 数据库操作
 │   ├── models/              # 数据模型
-│   │   └── data_models.py   # 数据模型定义
-│   ├── oauth/               # OAuth 模块
-│   │   ├── oauth_manager.py # OAuth 管理
-│   │   └── token_manager.py # Token 管理
-│   ├── utils/               # 工具模块
-│   │   ├── helpers.py       # 辅助函数
-│   │   └── timezone_utils.py # 时区工具函数
-│   └── web/                 # Web 界面
-│       └── web_routes.py    # Web 路由
-├── static/                  # 静态文件
-│   ├── script.js           # JavaScript 文件
-│   └── style.css           # CSS 文件
-├── templates/              # 模板文件
-│   └── index.html          # 主页面
-├── data/                   # 数据目录
-│   └── tokens.db           # SQLite 数据库
-├── requirements.txt        # Python 依赖
-├── setup.py               # 包安装配置
-├── docker-compose.yml     # Docker Compose 配置
-├── run.sh                 # Linux/macOS 启动脚本
-├── run.bat                # Windows 启动脚本
-├── README.md              # 项目说明（中文）
-└── README_en.md           # 项目说明（英文）
+│   ├── oauth/               # OAuth认证
+│   ├── utils/               # 工具函数
+│   └── web/                 # Web界面
+├── static/                  # 静态资源
+├── templates/               # HTML模板
+├── data/                    # 数据存储
+├── requirements.txt         # 依赖列表
+├── Dockerfile              # Docker配置
+├── docker-compose.yml      # Docker Compose配置
+├── run.sh                  # Linux启动脚本
+├── run.bat                 # Windows启动脚本
+└── .env.example            # 环境变量示例
 ```
 
-## 注意事项
+### 开发环境
 
-- 请妥善保管 API 密码
-- Token 数据存储在本地数据库中，请确保数据库文件安全
-- 建议在生产环境中使用强密码并通过环境变量设置
-- 确保 `data` 目录存在且可写，用于存储 SQLite 数据库
-- 虚拟环境会自动创建和激活，无需手动操作
+```bash
+# 安装开发依赖
+pip install -r requirements.txt
 
-## 许可证
+# 运行开发服务器
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
-本项目采用 MIT 许可证。
+# 代码检查
+find src -name "*.py" -exec python -m py_compile {} \;
+```
+
+## 🚨 注意事项
+
+- **安全第一**：务必修改默认密码
+- **数据备份**：定期备份`data/tokens.db`数据库
+- **环境隔离**：生产环境使用Docker部署
+- **日志监控**：关注应用日志和性能指标
+- **Token安全**：Token信息加密存储，勿泄露
+
+## 🤝 贡献指南
+
+1. Fork本项目
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 创建Pull Request
+
+## 📄 许可证
+
+本项目采用 [MIT许可证](LICENSE) - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+## 🙋‍♂️ 支持与反馈
+
+- **Issues**: [GitHub Issues](https://github.com/Water008/QwenAPI/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Water008/QwenAPI/discussions)
+
+---
+
+**⭐ 如果这个项目对你有帮助，请给个Star支持一下！**

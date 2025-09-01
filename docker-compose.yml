@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   qwen-api:
+    build: .
     image: ghcr.io/water008/qwenapi:latest
     ports:
       - "8000:8000"
@@ -11,7 +12,7 @@ services:
       - .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

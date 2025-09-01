@@ -8,7 +8,6 @@ from typing import Dict, Any, Optional
 
 @dataclass
 class TokenData:
-    """Token data model"""
     access_token: str
     refresh_token: str
     expires_at: Optional[int] = field(default_factory=lambda: int(time.time() * 1000) + 3600 * 1000)
@@ -16,7 +15,6 @@ class TokenData:
     usage_count: int = 0
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary"""
         return {
             'access_token': self.access_token,
             'refresh_token': self.refresh_token,
@@ -27,7 +25,6 @@ class TokenData:
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TokenData':
-        """Create from dictionary"""
         return cls(
             access_token=data['access_token'],
             refresh_token=data['refresh_token'],
@@ -39,7 +36,6 @@ class TokenData:
 
 @dataclass
 class OAuthState:
-    """OAuth authentication state model"""
     device_code: str
     user_code: str
     verification_uri: str
@@ -51,7 +47,6 @@ class OAuthState:
 
 @dataclass
 class RefreshResult:
-    """Token refresh result model"""
     token_id: str
     success: bool
     error: Optional[str] = None

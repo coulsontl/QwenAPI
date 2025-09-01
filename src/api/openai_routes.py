@@ -15,10 +15,9 @@ router = APIRouter()
 
 @router.get("/v1/models")
 async def get_models(request: Request):
-    """获取模型列表"""
     auth_header = request.headers.get('Authorization')
     if not verify_password(auth_header):
-        raise HTTPException(status_code=401, detail="未授权")
+        raise HTTPException(status_code=401, detail="Unauthorized")
     
     models = {
         "object": "list",
@@ -43,14 +42,13 @@ async def get_models(request: Request):
 
 @router.post("/v1/chat/completions")
 async def chat_completions(request: Request):
-    """处理聊天API请求"""
     auth_header = request.headers.get('Authorization')
     if not verify_password(auth_header):
-        raise HTTPException(status_code=401, detail="未授权")
+        raise HTTPException(status_code=401, detail="Unauthorized")
     
     try:
         data = await request.json()
     except:
-        raise HTTPException(status_code=400, detail="请求格式错误")
+        raise HTTPException(status_code=400, detail="Request format error")
     
     return await handle_chat(data)

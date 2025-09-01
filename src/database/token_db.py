@@ -5,10 +5,10 @@ import sqlite3
 import time
 from typing import Dict
 from ..models import TokenData
+import os
 from ..config import DATABASE_URL, DATABASE_TABLE_NAME
 
 class TokenDatabase:
-    """SQLite数据库管理器"""
     
     def __init__(self, db_path: str = DATABASE_URL):
         self.db_path = db_path
@@ -19,13 +19,11 @@ class TokenDatabase:
         self._cache_ttl = 60
     
     def _ensure_directory_exists(self):
-        """确保数据库目录存在"""
         db_dir = os.path.dirname(os.path.abspath(self.db_path))
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
 
     def _migrate_db(self):
-        """数据库迁移"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='token_usage_stats'")
@@ -37,7 +35,6 @@ class TokenDatabase:
             conn.commit()
 
     def init_db(self):
-        """初始化数据库表"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'''
@@ -79,7 +76,6 @@ class TokenDatabase:
         self._cache.clear()
 
     def save_token(self, token_id: str, token_data: TokenData) -> None:
-        """保存token"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'''
@@ -92,7 +88,6 @@ class TokenDatabase:
         self._invalidate_cache()
 
     def load_all_tokens(self) -> Dict[str, TokenData]:
-        """加载所有token（带缓存）"""
         cache_key = self._get_cache_key("load_all_tokens")
         cached = self._get_cached_result(cache_key)
         if cached:
@@ -116,7 +111,6 @@ class TokenDatabase:
         return tokens
 
     def delete_token(self, token_id: str) -> None:
-        """删除token"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'DELETE FROM {DATABASE_TABLE_NAME} WHERE id = ?', (token_id,))
@@ -124,7 +118,6 @@ class TokenDatabase:
         self._invalidate_cache()
 
     def delete_all_tokens(self) -> None:
-        """删除所有token"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'DELETE FROM {DATABASE_TABLE_NAME}')
@@ -132,7 +125,6 @@ class TokenDatabase:
         self._invalidate_cache()
 
     def update_token_usage(self, date: str, model_name: str, tokens: int):
-        """更新token用量"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -146,7 +138,6 @@ class TokenDatabase:
         self._invalidate_cache()
 
     def get_usage_stats(self, date: str) -> Dict:
-        """获取用量统计（带缓存）"""
         cache_key = self._get_cache_key("get_usage_stats", date)
         cached = self._get_cached_result(cache_key)
         if cached:
@@ -172,7 +163,6 @@ class TokenDatabase:
             return result
 
     def delete_usage_stats(self, date: str) -> int:
-        """删除用量统计"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM token_usage_stats WHERE date = ?', (date,))
@@ -182,10 +172,7 @@ class TokenDatabase:
         return deleted_count
 
     def increment_token_usage_count(self, token_id: str):
-        """增加token使用计数"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f"UPDATE {DATABASE_TABLE_NAME} SET usage_count = usage_count + 1 WHERE id = ?", (token_id,))
             conn.commit()
-
-import os
