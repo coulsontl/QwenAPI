@@ -23,8 +23,8 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 WORKDIR /app
 
-# 复制已安装的依赖
-COPY --from=builder /root/.local /home/appuser/.local
+# 复制已安装的依赖到系统路径
+COPY --from=builder /root/.local /usr/local
 
 # 复制应用代码
 COPY --chown=appuser:appuser . .
@@ -35,8 +35,6 @@ RUN mkdir -p data && chown -R appuser:appuser /app
 # 切换到非root用户
 USER appuser
 
-# 更新PATH
-ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PYTHONPATH=/app
 
 # 健康检查
@@ -45,5 +43,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 EXPOSE 8000
 
-# 使用更高效的启动方式
-CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+# 使用uvicorn启动
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
