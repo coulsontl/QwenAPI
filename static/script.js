@@ -26,6 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const queryUsageBtn = document.getElementById('query-usage-btn');
     const deleteUsageBtn = document.getElementById('delete-usage-btn');
     
+    const datePickerBtn = document.getElementById('date-picker-btn');
+    const datePickerDropdown = document.getElementById('date-picker-dropdown');
+    const prevMonthBtn = document.getElementById('prev-month');
+    const nextMonthBtn = document.getElementById('next-month');
+    const currentMonthYear = document.getElementById('current-month-year');
+    const calendarDays = document.getElementById('calendar-days');
+    
     const oauthLoginBtn = document.getElementById('oauth-login-btn');
     const oauthStatus = document.getElementById('oauth-status');
     const oauthDetails = document.getElementById('oauth-details');
@@ -38,6 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let oauthStartTime = null;
     let oauthCountdownTimer = null;
     let oauthExpiresAt = null;
+    
+    let currentDate = new Date();
+    let selectedDate = null;
+    let availableDates = new Set();
+    let isDatePickerOpen = false;
     
     // 登录功能
     loginBtn.addEventListener('click', async function() {
@@ -69,17 +81,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 loginSection.classList.add('hidden');
                 mainSection.classList.remove('hidden');
                 checkTokenStatus();
-                // Initialize date input and load usage for today (using local timezone)
+                
+                // Initialize custom date picker and load usage for today
                 const today = new Date();
                 const yyyy = today.getFullYear();
-                const mm = String(today.getMonth() + 1).padStart(2, '0'); // Months start at 0!
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
                 const dd = String(today.getDate()).padStart(2, '0');
                 const todayString = `${yyyy}-${mm}-${dd}`;
+                
+                selectedDate = todayString;
                 usageDateInput.value = todayString;
-                // Initial load of usage for today
+                
+                initCustomDatePicker();
+                loadAvailableDates();
+                
                 checkTokenUsage(todayString);
                 
-                // Add event listeners for usage query and delete
                 if (queryUsageBtn) {
                     queryUsageBtn.addEventListener('click', async function() {
                         const selectedDate = usageDateInput.value;
@@ -128,8 +145,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     if (response.ok) {
                                         addStatusMessage(data.message || '删除成功', 'success', 3000);
-                                        // Refresh the usage data for the selected date
                                         await checkTokenUsage(selectedDate);
+                                        await loadAvailableDates();
                                     } else {
                                         addStatusMessage(data.error || '删除失败', 'error', 3000);
                                     }
@@ -450,7 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 resetOAuthLogin();
             }
         } catch (error) {
-            // OAuth 轮询错误
+            console.error('Failed to load available dates:', error);
         }
     }
     
@@ -762,7 +779,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     showStatus(apiStatus, '请求成功', 'success');
                     responseContent.textContent = JSON.stringify(data, null, 2);
                     apiResponse.classList.remove('hidden');
-                    checkTokenUsage(); // Refresh usage stats after a successful call
+                    checkTokenUsage();
+                    loadAvailableDates();
                 } else {
                     showStatus(apiStatus, data.error || '请求失败', 'error');
                 }
@@ -1013,5 +1031,237 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusContainer.style.display = 'none';
             }
         }, 300);
+    }
+
+    // 自定义日期选择器功能实现
+    async function loadAvailableDates() {
+        try {
+            const response = await fetch('/api/statistics/available-dates', {
+                headers: {
+                    'Authorization': 'Bearer ' + userPassword
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                availableDates.clear();
+                data.dates.forEach(date => availableDates.add(date));
+                if (isDatePickerOpen) {
+                    renderCalendar();
+                }
+            }
+        } catch (error) {
+            // 静默处理加载错误
+        }
+    }
+
+    function initCustomDatePicker() {
+        if (usageDateInput) {
+            usageDateInput.addEventListener('click', toggleDatePicker);
+            usageDateInput.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                toggleDatePicker();
+            });
+        }
+        if (datePickerBtn) {
+            datePickerBtn.addEventListener('click', toggleDatePicker);
+            datePickerBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                toggleDatePicker();
+            });
+        }
+
+        if (prevMonthBtn) {
+            prevMonthBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                renderCalendar();
+            });
+            prevMonthBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                renderCalendar();
+            });
+        }
+        if (nextMonthBtn) {
+            nextMonthBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar();
+            });
+            nextMonthBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar();
+            });
+        }
+
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.custom-date-picker')) {
+                closeDatePicker();
+            }
+        });
+        
+        document.addEventListener('touchstart', (event) => {
+            if (!event.target.closest('.custom-date-picker') && isDatePickerOpen) {
+                closeDatePicker();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (isDatePickerOpen) {
+                adjustDatePickerPosition();
+            }
+        });
+
+        renderCalendar();
+    }
+
+    function toggleDatePicker() {
+        if (isDatePickerOpen) {
+            closeDatePicker();
+        } else {
+            openDatePicker();
+        }
+    }
+
+    function openDatePicker() {
+        if (datePickerDropdown) {
+            datePickerDropdown.classList.remove('hidden');
+            isDatePickerOpen = true;
+            
+            adjustDatePickerPosition();
+            
+            renderCalendar();
+        }
+    }
+
+    function adjustDatePickerPosition() {
+        if (!datePickerDropdown || !usageDateInput) return;
+        
+        const rect = usageDateInput.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const dropdownWidth = 320;
+        
+        datePickerDropdown.style.left = '';
+        datePickerDropdown.style.right = '';
+        datePickerDropdown.style.width = '';
+        
+        if (rect.left + dropdownWidth > viewportWidth - 20) {
+            datePickerDropdown.style.left = 'auto';
+            datePickerDropdown.style.right = '0';
+        }
+        
+        if (viewportWidth <= 480) {
+            datePickerDropdown.style.left = '-5px';
+            datePickerDropdown.style.right = '-5px';
+            datePickerDropdown.style.width = 'calc(100% + 10px)';
+        } else if (viewportWidth <= 768) {
+            datePickerDropdown.style.left = '0';
+            datePickerDropdown.style.right = '0';
+            datePickerDropdown.style.width = '100%';
+        }
+    }
+
+    function closeDatePicker() {
+        if (datePickerDropdown) {
+            datePickerDropdown.classList.add('hidden');
+            isDatePickerOpen = false;
+        }
+    }
+
+    function renderCalendar() {
+        if (!currentMonthYear || !calendarDays) return;
+
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        
+        const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', 
+                           '7月', '8月', '9月', '10月', '11月', '12月'];
+        currentMonthYear.textContent = `${year}年 ${monthNames[month]}`;
+
+        calendarDays.innerHTML = '';
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const firstDayOfWeek = firstDay.getDay();
+        const daysInMonth = lastDay.getDate();
+
+        const prevMonth = new Date(year, month - 1, 0);
+        for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+            const day = prevMonth.getDate() - i;
+            const dayElement = createDayElement(day, true);
+            calendarDays.appendChild(dayElement);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayElement = createDayElement(day, false);
+            calendarDays.appendChild(dayElement);
+        }
+
+        const totalCells = calendarDays.children.length;
+        const remainingCells = 42 - totalCells;
+        for (let day = 1; day <= remainingCells; day++) {
+            const dayElement = createDayElement(day, true);
+            calendarDays.appendChild(dayElement);
+        }
+    }
+
+    function createDayElement(day, isOtherMonth) {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'calendar-day';
+        dayElement.textContent = day;
+
+        if (isOtherMonth) {
+            dayElement.classList.add('other-month');
+            return dayElement;
+        }
+
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        const today = new Date();
+        if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+            dayElement.classList.add('today');
+        }
+
+        if (selectedDate === dateString) {
+            dayElement.classList.add('selected');
+        }
+
+        if (availableDates.has(dateString)) {
+            dayElement.classList.add('has-data');
+        }
+
+        dayElement.addEventListener('click', () => {
+            selectDate(dateString);
+        });
+        
+        dayElement.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            dayElement.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                dayElement.style.transform = '';
+                selectDate(dateString);
+            }, 100);
+        });
+
+        return dayElement;
+    }
+
+    function selectDate(dateString) {
+        selectedDate = dateString;
+        usageDateInput.value = dateString;
+        renderCalendar();
+        closeDatePicker();
+        
+        checkTokenUsage(dateString);
+    }
+
+    function formatDateForDisplay(dateString) {
+        const date = new Date(dateString + 'T00:00:00');
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 });

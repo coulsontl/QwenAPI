@@ -77,7 +77,26 @@
             <div class="section">
                 <h2>📊 用量统计</h2>
                 <div class="form-group usage-date-selector">
-                    <input type="date" id="usage-date">
+                    <div class="custom-date-picker">
+                        <input type="text" id="usage-date" readonly placeholder="选择日期">
+                        <button type="button" id="date-picker-btn" title="选择日期">📅</button>
+                        <div id="date-picker-dropdown" class="date-picker-dropdown hidden">
+                            <div class="date-picker-header">
+                                <button type="button" id="prev-month" title="上一月">‹</button>
+                                <span id="current-month-year"></span>
+                                <button type="button" id="next-month" title="下一月">›</button>
+                            </div>
+                            <div class="date-picker-calendar">
+                                <div class="weekdays">
+                                    <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                                </div>
+                                <div id="calendar-days" class="calendar-days"></div>
+                                <div class="date-picker-tip">
+                                    <small>💡 绿色日期表示有统计数据</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <button id="query-usage-btn">查询</button>
                     <button id="delete-usage-btn" style="background-color: #e74c3c;">删除</button>
                 </div>

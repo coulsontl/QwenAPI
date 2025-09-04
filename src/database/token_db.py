@@ -176,3 +176,17 @@ class TokenDatabase:
             cursor = conn.cursor()
             cursor.execute(f"UPDATE {DATABASE_TABLE_NAME} SET usage_count = usage_count + 1 WHERE id = ?", (token_id,))
             conn.commit()
+
+    def get_available_dates(self) -> list:
+        cache_key = self._get_cache_key("get_available_dates")
+        cached = self._get_cached_result(cache_key)
+        if cached:
+            return cached
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT DISTINCT date FROM token_usage_stats ORDER BY date DESC')
+            dates = [row[0] for row in cursor.fetchall()]
+            
+            self._cache_result(cache_key, dates)
+            return dates

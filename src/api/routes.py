@@ -157,6 +157,10 @@ async def get_usage_statistics(request: Request, auth: bool = Depends(check_auth
     date = request.query_params.get('date') or get_local_today_iso()
     return JSONResponse(db.get_usage_stats(date))
 
+@router.get("/statistics/available-dates")
+async def get_available_dates(auth: bool = Depends(check_auth)):
+    return JSONResponse({"dates": db.get_available_dates()})
+
 @router.delete("/statistics/usage")
 async def delete_usage_statistics(request: Request, auth: bool = Depends(check_auth)):
     data = await parse_json(request)
