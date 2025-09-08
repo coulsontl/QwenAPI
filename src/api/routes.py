@@ -39,6 +39,13 @@ router = APIRouter()
 db = TokenDatabase()
 oauth_manager = OAuthManager()
 token_manager = TokenManager(db)
+_version_manager = None
+
+def set_version_manager(version_manager):
+    global _version_manager
+    _version_manager = version_manager
+    token_manager.set_version_manager(version_manager)
+    oauth_manager.set_version_manager(version_manager)
 
 async def parse_json(request: Request) -> Dict[str, Any]:
     try:
@@ -197,6 +204,17 @@ async def get_metrics(auth: bool = Depends(check_auth)):
     except Exception as e:
         return JSONResponse({"error": str(e)}, 500)
 
+@router.get("/version")
+async def get_version(auth: bool = Depends(check_auth)):
+    try:
+        if _version_manager:
+            version = await _version_manager.get_version()
+            return JSONResponse({"version": version})
+        else:
+            return JSONResponse({"version": "未知"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, 500)
+
 async def handle_chat(data: Dict[str, Any]):
     messages = data.get('messages')
     model = data.get('model', 'qwen3-coder-plus')
@@ -225,6 +243,9 @@ async def handle_chat(data: Dict[str, Any]):
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream' if stream else 'application/json'
     }
+    
+    if _version_manager:
+        headers['User-Agent'] = await _version_manager.get_user_agent_async()
 
     body = {
         'model': model,

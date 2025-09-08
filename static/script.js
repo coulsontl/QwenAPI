@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let availableDates = new Set();
     let isDatePickerOpen = false;
     
-    // 登录功能
     loginBtn.addEventListener('click', async function() {
         const password = passwordInput.value;
         
@@ -81,8 +80,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 loginSection.classList.add('hidden');
                 mainSection.classList.remove('hidden');
                 checkTokenStatus();
+                loadVersion();
                 
-                // Initialize custom date picker and load usage for today
                 const today = new Date();
                 const yyyy = today.getFullYear();
                 const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -177,7 +176,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // 文件上传功能
     if (dropZone && fileInput) {
         dropZone.addEventListener('click', function() { fileInput.click(); });
         
@@ -206,7 +204,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // OAuth 登录按钮事件
     if (oauthLoginBtn) {
         oauthLoginBtn.addEventListener('click', startOAuthLogin);
     }
@@ -220,7 +217,6 @@ document.addEventListener('DOMContentLoaded', function() {
         manualOpenBtn.disabled = true;
     }
     
-    // 处理文件上传
     async function handleFileUpload(file) {
         if (!uploadStatus) return;
         
@@ -260,34 +256,25 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             showStatus(uploadStatus, '文件处理错误: ' + error.message, 'error');
         } finally {
-            // 无论成功还是失败，都重置文件输入
             resetFileInput();
         }
     }
     
-    // 重置文件输入元素
     function resetFileInput() {
         if (fileInput) {
-            // 方法1: 清空值
             fileInput.value = '';
-            
-            // 强制触发重新渲染，确保状态完全重置
             fileInput.blur();
             fileInput.focus();
         }
     }
     
-    // 重新绑定文件输入事件（解决某些浏览器中的问题）
     function rebindFileInputEvents() {
         if (fileInput) {
-            // 移除旧的事件监听器（如果存在）
             const newFileInput = fileInput.cloneNode(true);
             fileInput.parentNode.replaceChild(newFileInput, fileInput);
             
-            // 更新引用
             window.fileInput = newFileInput;
             
-            // 重新绑定事件
             newFileInput.addEventListener('change', function(e) {
                 if (e.target.files.length) {
                     handleFileUpload(e.target.files[0]);
@@ -296,7 +283,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 开始 OAuth 登录流程
     async function startOAuthLogin() {
         if (!oauthLoginBtn || !oauthStatus || !oauthDetails || !oauthInstructions) return;
         
@@ -326,7 +312,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     window.open(data.verificationUriComplete, '_blank');
                 } catch (e) {
-                    // 自动打开授权页面失败
                 }
                 
                 const expiresAt = new Date(oauthExpiresAt);
@@ -373,7 +358,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 开始轮询 OAuth 状态
     function startOAuthPolling() {
         if (!oauthStateId) return;
         
@@ -381,7 +365,6 @@ document.addEventListener('DOMContentLoaded', function() {
         oauthPollTimer = setInterval(pollOAuthStatus, 3000);
     }
     
-    // 开始倒计时
     function startOAuthCountdown() {
         if (!oauthExpiresAt || !oauthStatus) return;
         
@@ -389,7 +372,6 @@ document.addEventListener('DOMContentLoaded', function() {
         oauthCountdownTimer = setInterval(updateCountdown, 1000);
     }
     
-    // 更新倒计时显示
     function updateCountdown() {
         if (!oauthExpiresAt || !oauthStatus) return;
         
@@ -421,7 +403,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 停止倒计时
     function stopOAuthCountdown() {
         if (oauthCountdownTimer) {
             clearInterval(oauthCountdownTimer);
@@ -429,7 +410,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 轮询 OAuth 状态
     async function pollOAuthStatus() {
         if (!oauthStateId || !oauthStatus) return;
         
@@ -471,7 +451,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 重置 OAuth 登录状态
     function resetOAuthLogin() {
         if (oauthPollTimer) {
             clearInterval(oauthPollTimer);
@@ -499,7 +478,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 取消 OAuth 登录
     async function cancelOAuthLogin() {
         if (!oauthStateId) {
             resetOAuthLogin();
@@ -525,7 +503,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 确认对话框函数
     function showConfirmDialog(message, onConfirm, onCancel, title = "确认删除") {
         const modal = document.createElement('div');
         modal.style.cssText = 
@@ -578,7 +555,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
     
-    // 事件委托处理token按钮点击
     document.addEventListener('click', function(e) {
         const target = e.target;
         if (target.classList.contains('btn-refresh')) {
@@ -603,7 +579,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // 检查token状态
     async function checkTokenStatus() {
         if (!tokenStatus || !refreshTokenBtn) return;
         
@@ -682,7 +657,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 刷新token
     if (refreshTokenBtn && refreshStatus) {
         refreshTokenBtn.addEventListener('click', async function() {
             addStatusMessage('正在强制刷新所有Token...', 'info', 5000);
@@ -708,7 +682,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 删除所有Token
     if (deleteAllTokensBtn) {
         deleteAllTokensBtn.addEventListener('click', async function() {
             showConfirmDialog(
@@ -741,7 +714,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 发送API请求
     if (sendBtn && apiStatus && apiResponse && responseContent && messageInput && modelSelect) {
         sendBtn.addEventListener('click', async function() {
             const message = messageInput.value.trim();
@@ -790,7 +762,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Check token usage
     async function checkTokenUsage(date = null) {
         if (!totalTokensToday || !modelUsageDetails || !tokenUsageStatus) return;
 
@@ -835,7 +806,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 刷新单个token
     async function refreshSingleToken(tokenId) {
         const card = document.querySelector('[data-token-id="' + encodeURIComponent(tokenId) + '"]');
         if (!card) return;
@@ -890,7 +860,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 删除单个token
     async function deleteSingleToken(tokenId) {
         const card = document.querySelector('[data-token-id="' + encodeURIComponent(tokenId) + '"]');
         if (!card) return;
@@ -937,22 +906,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 状态消息队列管理
     const statusQueue = [];
     let statusTimeouts = new Map();
     
-    // 显示状态信息
     function showStatus(element, message, type) {
         if (!element) return;
         
-        // 处理需要显示为浮动状态的消息
         if ((element.id === 'token-status' || element.id === 'refresh-status') && 
             (message.includes('刷新') || message.includes('删除') || message.includes('成功') || message.includes('失败'))) {
             addStatusMessage(message, type, 5000);
             return;
         }
         
-        // 处理普通状态元素
         if (element.hideTimeout) {
             clearTimeout(element.hideTimeout);
         }
@@ -973,27 +938,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 添加状态消息到队列
     function addStatusMessage(message, type, duration = 5000) {
         if (!statusContainer) return;
         
-        // 显示容器
         statusContainer.style.display = 'flex';
         
-        // 创建新的状态元素
         const statusElement = document.createElement('div');
         statusElement.className = 'status floating ' + type;
         statusElement.textContent = message;
         statusElement.style.display = 'block';
         
-        // 添加到容器
         statusContainer.appendChild(statusElement);
         
-        // 添加到队列
         const messageId = Date.now() + Math.random();
         statusQueue.push({ id: messageId, element: statusElement });
         
-        // 设置超时自动移除
         const timeoutId = setTimeout(() => {
             removeStatusMessage(messageId);
         }, duration);
@@ -1001,39 +960,55 @@ document.addEventListener('DOMContentLoaded', function() {
         statusTimeouts.set(messageId, timeoutId);
     }
     
-    // 移除状态消息
     function removeStatusMessage(messageId) {
         const messageIndex = statusQueue.findIndex(msg => msg.id === messageId);
         if (messageIndex === -1) return;
         
         const message = statusQueue[messageIndex];
         
-        // 清除超时
         if (statusTimeouts.has(messageId)) {
             clearTimeout(statusTimeouts.get(messageId));
             statusTimeouts.delete(messageId);
         }
         
-        // 添加移除动画
         message.element.classList.add('removing');
         
-        // 动画完成后移除元素
         setTimeout(() => {
             if (message.element.parentNode) {
                 message.element.parentNode.removeChild(message.element);
             }
             
-            // 从队列中移除
             statusQueue.splice(messageIndex, 1);
             
-            // 如果队列为空，隐藏容器
             if (statusQueue.length === 0) {
                 statusContainer.style.display = 'none';
             }
         }, 300);
     }
 
-    // 自定义日期选择器功能实现
+    async function loadVersion() {
+        const versionElement = document.getElementById('current-version');
+        if (!versionElement) return;
+        
+        try {
+            const response = await fetch('/api/version', {
+                headers: {
+                    'Authorization': 'Bearer ' + userPassword
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                versionElement.textContent = data.version;
+            } else {
+                versionElement.textContent = '获取失败';
+            }
+        } catch (error) {
+            console.error('获取版本号失败:', error);
+            versionElement.textContent = '获取失败';
+        }
+    }
+    
     async function loadAvailableDates() {
         try {
             const response = await fetch('/api/statistics/available-dates', {
@@ -1051,7 +1026,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } catch (error) {
-            // 静默处理加载错误
         }
     }
 

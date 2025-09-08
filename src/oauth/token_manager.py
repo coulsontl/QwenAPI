@@ -17,6 +17,10 @@ class TokenManager:
     def __init__(self, db: TokenDatabase):
         self.db = db
         self.token_store: Dict[str, TokenData] = {}
+        self._version_manager = None
+    
+    def set_version_manager(self, version_manager):
+        self._version_manager = version_manager
     
     def load_tokens(self) -> None:
         self.token_store = self.db.load_all_tokens()
@@ -90,13 +94,17 @@ class TokenManager:
     
     async def _force_refresh_token(self, token_id: str, token: TokenData) -> Optional[TokenData]:
         try:
+            headers = {}
+            if self._version_manager:
+                headers['User-Agent'] = await self._version_manager.get_user_agent_async()
+            
             async with aiohttp.ClientSession() as session:
                 data = aiohttp.FormData()
                 data.add_field('grant_type', 'refresh_token')
                 data.add_field('refresh_token', token.refresh_token)
                 data.add_field('client_id', QWEN_OAUTH_CLIENT_ID)
                 
-                async with session.post(QWEN_OAUTH_TOKEN_ENDPOINT, data=data) as response:
+                async with session.post(QWEN_OAUTH_TOKEN_ENDPOINT, data=data, headers=headers) as response:
                     if response.status != 200:
                         return None
                     

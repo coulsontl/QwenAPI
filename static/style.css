@@ -17,7 +17,17 @@ body {
 h1 {
     color: #2c3e50;
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 10px;
+}
+.version-info {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #2c3e50;
+    font-size: 14px;
+}
+.version-info #current-version {
+    font-weight: bold;
+    color: #27ae60;
 }
 .section {
     margin-bottom: 30px;
@@ -151,8 +161,8 @@ pre {
     color: #495057;
 }
 .token-card {
-    background-color: #f8f9fa; /* A very light grey for cards */
-    border: 1px solid #e9ecef; /* A slightly darker border to make it pop */
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
     border-top: 3px solid transparent;
     border-radius: 8px;
     padding: 12px;
@@ -593,7 +603,6 @@ pre {
     background-color: #c0392b;
 }
 
-/* 移动端响应式样式 */
 @media (max-width: 768px) {
     body {
         padding: 10px;
@@ -617,7 +626,6 @@ pre {
         font-size: 18px;
     }
     
-    /* 修复token卡片宽度问题 */
     .token-list {
         grid-template-columns: 1fr;
         gap: 10px;
@@ -632,7 +640,6 @@ pre {
         max-width: 200px;
     }
     
-    /* 修复标签溢出问题 */
     .total-usage-badges, .token-summary-badges {
         flex-direction: column;
         gap: 8px;
@@ -650,7 +657,6 @@ pre {
         box-sizing: border-box;
     }
     
-    /* 调整用量统计布局 */
     .usage-date-selector {
         flex-direction: column;
         gap: 8px;
@@ -666,7 +672,6 @@ pre {
         padding: 10px;
     }
     
-    /* 调整按钮布局 */
     .token-status-buttons {
         flex-direction: column;
         gap: 8px;
@@ -677,7 +682,6 @@ pre {
         padding: 12px;
     }
     
-    /* 调整登录区域 */
     .login-input-group {
         flex-direction: column;
         max-width: 100%;
@@ -694,7 +698,6 @@ pre {
         width: 100%;
     }
     
-    /* 调整OAuth按钮 */
     #oauth-details .oauth-button-container {
         flex-direction: column;
     }
@@ -705,7 +708,6 @@ pre {
         padding: 12px;
     }
     
-    /* 调整API测试区域 */
     #model, #message {
         font-size: 14px;
     }
@@ -715,18 +717,15 @@ pre {
         padding: 12px;
     }
     
-    /* 调整token状态显示 */
     .token-status {
         font-size: 12px;
         padding: 3px 6px;
     }
     
-    /* 调整token详情 */
     .token-details {
         font-size: 12px;
     }
     
-    /* 调整token操作按钮 */
     .token-actions {
         flex-direction: column;
         gap: 8px;
@@ -739,7 +738,6 @@ pre {
     }
 }
 
-/* 超小屏幕适配 */
 @media (max-width: 480px) {
     body {
         padding: 5px;
@@ -777,7 +775,6 @@ pre {
     }
 }
 
-/* 自定义日期选择器样式 - 与整体页面风格一致 */
 .custom-date-picker {
     position: relative;
     display: inline-block;
@@ -832,7 +829,6 @@ pre {
     color: #3498db;
 }
 
-/* iOS Safari 特定优化 */
 @supports (-webkit-touch-callout: none) {
     #date-picker-btn {
         -webkit-appearance: none;
@@ -847,7 +843,6 @@ pre {
     }
 }
 
-/* Android Chrome 特定优化 */
 @media screen and (-webkit-min-device-pixel-ratio: 1) and (max-device-width: 480px) {
     #date-picker-btn {
         -webkit-tap-highlight-color: rgba(52, 152, 219, 0.2);

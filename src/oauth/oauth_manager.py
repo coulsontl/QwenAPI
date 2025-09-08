@@ -19,11 +19,19 @@ class OAuthManager:
     
     def __init__(self):
         self.oauth_states: Dict[str, OAuthState] = {}
+        self._version_manager = None
+    
+    def set_version_manager(self, version_manager):
+        self._version_manager = version_manager
     
     async def init_oauth(self) -> Dict[str, Any]:
         try:
             code_verifier, code_challenge = await generate_pkce_pair()
             
+            headers = {}
+            if self._version_manager:
+                headers['User-Agent'] = await self._version_manager.get_user_agent_async()
+                
             async with aiohttp.ClientSession() as session:
                 data = aiohttp.FormData()
                 data.add_field('client_id', QWEN_OAUTH_CLIENT_ID)
@@ -31,7 +39,7 @@ class OAuthManager:
                 data.add_field('code_challenge', code_challenge)
                 data.add_field('code_challenge_method', 'S256')
                 
-                async with session.post(QWEN_OAUTH_DEVICE_CODE_ENDPOINT, data=data) as response:
+                async with session.post(QWEN_OAUTH_DEVICE_CODE_ENDPOINT, data=data, headers=headers) as response:
                     if response.status != 200:
                         error_text = await response.text()
                         raise Exception(f'Device authorization failed: {response.status} {response.statusText}. Response: {error_text}')
@@ -86,7 +94,10 @@ class OAuthManager:
             }
         
         try:
-            # 尝试获取token
+            headers = {}
+            if self._version_manager:
+                headers['User-Agent'] = await self._version_manager.get_user_agent_async()
+                
             async with aiohttp.ClientSession() as session:
                 form_data = aiohttp.FormData()
                 form_data.add_field('grant_type', QWEN_OAUTH_GRANT_TYPE)
@@ -94,7 +105,7 @@ class OAuthManager:
                 form_data.add_field('device_code', state.device_code)
                 form_data.add_field('code_verifier', state.code_verifier)
                 
-                async with session.post(QWEN_OAUTH_TOKEN_ENDPOINT, data=form_data) as response:
+                async with session.post(QWEN_OAUTH_TOKEN_ENDPOINT, data=form_data, headers=headers) as response:
                     if response.status != 200:
                         try:
                             error_data = await response.json()

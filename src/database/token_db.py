@@ -32,6 +32,16 @@ class TokenDatabase:
                 columns = [info[1] for info in cursor.fetchall()]
                 if 'call_count' not in columns:
                     cursor.execute("ALTER TABLE token_usage_stats ADD COLUMN call_count INTEGER DEFAULT 0")
+            
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='app_versions'")
+            if not cursor.fetchone():
+                cursor.execute('''
+                    CREATE TABLE app_versions (
+                        key TEXT PRIMARY KEY,
+                        version TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                ''')
             conn.commit()
 
     def init_db(self):
@@ -54,6 +64,13 @@ class TokenDatabase:
                     total_tokens INTEGER,
                     call_count INTEGER DEFAULT 0,
                     PRIMARY KEY (date, model_name)
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS app_versions (
+                    key TEXT PRIMARY KEY,
+                    version TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL
                 )
             ''')
             conn.commit()
@@ -190,3 +207,29 @@ class TokenDatabase:
             
             self._cache_result(cache_key, dates)
             return dates
+
+    def save_app_version(self, version: str) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO app_versions (key, version, updated_at)
+                VALUES (?, ?, ?)
+            ''', ('qwen_code', version, int(time.time() * 1000)))
+            conn.commit()
+        self._invalidate_cache()
+
+    def get_app_version(self) -> str:
+        cache_key = self._get_cache_key("get_app_version")
+        cached = self._get_cached_result(cache_key)
+        if cached:
+            return cached
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT version FROM app_versions WHERE key = ?', ('qwen_code',))
+            row = cursor.fetchone()
+            version = row[0] if row else None
+            
+            if version:
+                self._cache_result(cache_key, version)
+            return version
