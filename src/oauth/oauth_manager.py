@@ -3,6 +3,8 @@ OAuth2 management for Qwen Code API Server
 """
 import time
 import aiohttp
+import asyncio
+import logging
 from typing import Dict, Optional, Any
 from ..models import OAuthState, TokenData
 from ..utils import generate_state_id, generate_pkce_pair
@@ -14,65 +16,94 @@ from ..config import (
     QWEN_OAUTH_GRANT_TYPE
 )
 
+logger = logging.getLogger(__name__)
+
 
 class OAuthManager:
     
     def __init__(self):
         self.oauth_states: Dict[str, OAuthState] = {}
         self._version_manager = None
+        self.REQUEST_TIMEOUT = 10
     
     def set_version_manager(self, version_manager):
         self._version_manager = version_manager
     
     async def init_oauth(self) -> Dict[str, Any]:
         try:
-            code_verifier, code_challenge = await generate_pkce_pair()
-            
-            headers = {}
-            if self._version_manager:
-                headers['User-Agent'] = await self._version_manager.get_user_agent_async()
-                
-            async with aiohttp.ClientSession() as session:
-                data = aiohttp.FormData()
-                data.add_field('client_id', QWEN_OAUTH_CLIENT_ID)
-                data.add_field('scope', QWEN_OAUTH_SCOPE)
-                data.add_field('code_challenge', code_challenge)
-                data.add_field('code_challenge_method', 'S256')
-                
-                async with session.post(QWEN_OAUTH_DEVICE_CODE_ENDPOINT, data=data, headers=headers) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        raise Exception(f'Device authorization failed: {response.status} {response.statusText}. Response: {error_text}')
-                    
-                    result = await response.json()
-                    
-                    if 'error' in result:
-                        raise Exception(f'Device authorization failed: {result["error"]} - {result.get("error_description", "")}')
-                    
-                    auth_state = OAuthState(
-                        device_code=result['device_code'],
-                        user_code=result['user_code'],
-                        verification_uri=result['verification_uri'],
-                        verification_uri_complete=result['verification_uri_complete'],
-                        code_verifier=code_verifier,
-                        expires_at=int(time.time() * 1000) + result['expires_in'] * 1000,
-                        poll_interval=result.get('interval', 2)
-                    )
-                    
-                    state_id = generate_state_id()
-                    self.oauth_states[state_id] = auth_state
-                    
-                    return {
-                        'success': True,
-                        'stateId': state_id,
-                        'userCode': auth_state.user_code,
-                        'verificationUri': auth_state.verification_uri,
-                        'verificationUriComplete': auth_state.verification_uri_complete,
-                        'expiresAt': auth_state.expires_at,
-                        'expiresIn': int((auth_state.expires_at - time.time() * 1000) / 1000)
-                    }
+            return await asyncio.wait_for(
+                self._init_oauth_internal(), 
+                timeout=self.REQUEST_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            logger.error("OAuth初始化超时")
+            return {
+                'success': False,
+                'error': 'OAuth initialization timeout',
+                'error_description': 'The OAuth request timed out. Please try again.'
+            }
         except Exception as error:
-            raise Exception(f'OAuth初始化失败: {str(error)}')
+            logger.error(f"OAuth初始化失败: {error}")
+            return {
+                'success': False,
+                'error': str(error),
+                'error_description': str(error)
+            }
+    
+    async def _init_oauth_internal(self) -> Dict[str, Any]:
+        code_verifier, code_challenge = await generate_pkce_pair()
+        
+        headers = {}
+        if self._version_manager:
+            try:
+                user_agent = await asyncio.wait_for(
+                    self._version_manager.get_user_agent_async(),
+                    timeout=3
+                )
+                headers['User-Agent'] = user_agent
+            except asyncio.TimeoutError:
+                headers['User-Agent'] = 'QwenCode/unknown'
+        
+        timeout = aiohttp.ClientTimeout(total=8)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            data = aiohttp.FormData()
+            data.add_field('client_id', QWEN_OAUTH_CLIENT_ID)
+            data.add_field('scope', QWEN_OAUTH_SCOPE)
+            data.add_field('code_challenge', code_challenge)
+            data.add_field('code_challenge_method', 'S256')
+            
+            async with session.post(QWEN_OAUTH_DEVICE_CODE_ENDPOINT, data=data, headers=headers) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise Exception(f'Device authorization failed: {response.status} {response.statusText}. Response: {error_text}')
+                
+                result = await response.json()
+                
+                if 'error' in result:
+                    raise Exception(f'Device authorization failed: {result["error"]} - {result.get("error_description", "")}')
+                
+                auth_state = OAuthState(
+                    device_code=result['device_code'],
+                    user_code=result['user_code'],
+                    verification_uri=result['verification_uri'],
+                    verification_uri_complete=result['verification_uri_complete'],
+                    code_verifier=code_verifier,
+                    expires_at=int(time.time() * 1000) + result['expires_in'] * 1000,
+                    poll_interval=result.get('interval', 2)
+                )
+                
+                state_id = generate_state_id()
+                self.oauth_states[state_id] = auth_state
+                
+                return {
+                    'success': True,
+                    'stateId': state_id,
+                    'userCode': auth_state.user_code,
+                    'verificationUri': auth_state.verification_uri,
+                    'verificationUriComplete': auth_state.verification_uri_complete,
+                    'expiresAt': auth_state.expires_at,
+                    'expiresIn': int((auth_state.expires_at - time.time() * 1000) / 1000)
+                }
     
     async def poll_oauth_status(self, state_id: str) -> Dict[str, Any]:
         state = self.oauth_states.get(state_id)

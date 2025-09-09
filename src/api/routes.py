@@ -1,5 +1,7 @@
 import json
 import time
+import asyncio
+import logging
 import aiohttp
 import tiktoken
 from typing import Dict, Any
@@ -13,6 +15,8 @@ from ..models import TokenData
 from ..utils import get_token_id
 from ..utils.timezone_utils import get_local_today_iso
 from ..config import API_PASSWORD, QWEN_API_ENDPOINT
+
+logger = logging.getLogger(__name__)
 
 _session = None
 
@@ -130,7 +134,26 @@ async def api_refresh_token(auth: bool = Depends(check_auth)):
 
 @router.post("/oauth-init")
 async def api_oauth_init(auth: bool = Depends(check_auth)):
-    return JSONResponse(await oauth_manager.init_oauth())
+    try:
+        result = await asyncio.wait_for(
+            oauth_manager.init_oauth(), 
+            timeout=12
+        )
+        return JSONResponse(result)
+    except asyncio.TimeoutError:
+        logger.error("OAuth初始化接口超时")
+        return JSONResponse({
+            'success': False,
+            'error': 'Request timeout',
+            'error_description': 'The OAuth initialization request timed out'
+        })
+    except Exception as e:
+        logger.error(f"OAuth初始化接口错误: {e}")
+        return JSONResponse({
+            'success': False,
+            'error': 'Internal error',
+            'error_description': str(e)
+        }, 500)
 
 @router.post("/oauth-poll")
 async def api_oauth_poll(request: Request, auth: bool = Depends(check_auth)):
@@ -208,12 +231,19 @@ async def get_metrics(auth: bool = Depends(check_auth)):
 async def get_version(auth: bool = Depends(check_auth)):
     try:
         if _version_manager:
-            version = await _version_manager.get_version()
-            return JSONResponse({"version": version})
+            try:
+                version = await asyncio.wait_for(
+                    _version_manager.get_version(), 
+                    timeout=8
+                )
+                return JSONResponse({"version": version})
+            except asyncio.TimeoutError:
+                return JSONResponse({"version": "获取超时", "timeout": True})
         else:
             return JSONResponse({"version": "未知"})
     except Exception as e:
-        return JSONResponse({"error": str(e)}, 500)
+        logger.error(f"版本接口错误: {e}")
+        return JSONResponse({"version": "错误", "error": str(e)})
 
 async def handle_chat(data: Dict[str, Any]):
     messages = data.get('messages')
@@ -228,7 +258,7 @@ async def handle_chat(data: Dict[str, Any]):
     except:
         encoding = tiktoken.encoding_for_model("gpt-4")
 
-    prompt_tokens = sum(len(encoding.encode(msg.get('content', ''))) for msg in messages)
+    prompt_tokens = sum(len(encoding.encode(str(msg.get('content', '')))) for msg in messages)
     token_manager.load_tokens()
     
     valid_token = await token_manager.get_valid_token()
