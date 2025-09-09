@@ -34,7 +34,7 @@ async def get_session() -> aiohttp.ClientSession:
             keepalive_timeout=30,
             enable_cleanup_closed=True
         )
-        timeout = aiohttp.ClientTimeout(total=30, connect=5)
+        timeout = aiohttp.ClientTimeout(total=90, connect=10, sock_read=75)
         _session = aiohttp.ClientSession(
             connector=connector,
             timeout=timeout,
@@ -257,6 +257,19 @@ async def get_version(auth: bool = Depends(check_auth)):
 
 
 
+async def _make_api_request_with_retry(session, url, json_data, headers, max_retries=5):
+    last_exception = None
+    for attempt in range(max_retries):
+        try:
+            response = await session.post(url, json=json_data, headers=headers)
+            return response
+        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+            last_exception = e
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2 ** attempt)
+                continue
+            raise last_exception
+
 async def handle_chat(data: Dict[str, Any], max_tool_calls: int = 10):
     messages = data.get('messages', [])
     model = data.get('model', 'qwen3-coder-plus')
@@ -310,9 +323,13 @@ async def handle_chat(data: Dict[str, Any], max_tool_calls: int = 10):
     tool_call_count = 0
     
     while tool_call_count < max_tool_calls:
-        response = await session.post(QWEN_API_ENDPOINT, json=body, headers=headers)
-        if response.status != 200:
-            raise HTTPException(500, f'API error: {response.status}')
+        try:
+            response = await _make_api_request_with_retry(session, QWEN_API_ENDPOINT, body, headers)
+            if response.status != 200:
+                raise HTTPException(500, f'API error: {response.status}')
+        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+            logger.error(f"API request failed after retries: {str(e)}")
+            raise HTTPException(500, f'Request failed: {str(e)}')
 
         if stream:
             # 流式响应处理
