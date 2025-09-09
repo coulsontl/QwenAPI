@@ -4,7 +4,8 @@ import asyncio
 import logging
 import aiohttp
 import tiktoken
-from typing import Dict, Any
+import uuid
+from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -14,6 +15,8 @@ from ..database import TokenDatabase
 from ..models import TokenData
 from ..utils import get_token_id
 from ..utils.timezone_utils import get_local_today_iso
+from ..utils.tool_registry import get_tool_registry
+from ..utils.tool_executor import ToolCallExecutor
 from ..config import API_PASSWORD, QWEN_API_ENDPOINT
 
 logger = logging.getLogger(__name__)
@@ -44,12 +47,19 @@ db = TokenDatabase()
 oauth_manager = OAuthManager()
 token_manager = TokenManager(db)
 _version_manager = None
+_tool_executor = None
 
 def set_version_manager(version_manager):
     global _version_manager
     _version_manager = version_manager
     token_manager.set_version_manager(version_manager)
     oauth_manager.set_version_manager(version_manager)
+
+def get_tool_executor():
+    global _tool_executor
+    if _tool_executor is None:
+        _tool_executor = ToolCallExecutor(get_tool_registry())
+    return _tool_executor
 
 async def parse_json(request: Request) -> Dict[str, Any]:
     try:
@@ -245,10 +255,14 @@ async def get_version(auth: bool = Depends(check_auth)):
         logger.error(f"版本接口错误: {e}")
         return JSONResponse({"version": "错误", "error": str(e)})
 
-async def handle_chat(data: Dict[str, Any]):
-    messages = data.get('messages')
+
+
+async def handle_chat(data: Dict[str, Any], max_tool_calls: int = 10):
+    messages = data.get('messages', [])
     model = data.get('model', 'qwen3-coder-plus')
     stream = data.get('stream', False)
+    tools = data.get('tools', [])
+    tool_choice = data.get('tool_choice', 'auto')
     
     if not messages or not isinstance(messages, list):
         raise HTTPException(400, "Invalid messages")
@@ -277,6 +291,7 @@ async def handle_chat(data: Dict[str, Any]):
     if _version_manager:
         headers['User-Agent'] = await _version_manager.get_user_agent_async()
 
+    # 构建请求体
     body = {
         'model': model,
         'messages': messages,
@@ -284,56 +299,128 @@ async def handle_chat(data: Dict[str, Any]):
         'top_p': data.get('top_p', 1),
         'stream': stream
     }
-
-    response = await session.post(QWEN_API_ENDPOINT, json=body, headers=headers)
-    if response.status != 200:
-        raise HTTPException(500, f'API error: {response.status}')
-
-    if stream:
-        async def generate():
-            buffer = ""
-            last_content = ""
-            completion_text = ""
-            
-            async for chunk in response.content.iter_any():
-                buffer += chunk.decode('utf-8')
-                
-                while '\n' in buffer:
-                    line, buffer = buffer.split('\n', 1)
-                    if line.startswith('data:'):
-                        line_data = line[5:].strip()
-                        if line_data and line_data != '[DONE]':
-                            try:
-                                json_data = json.loads(line_data)
-                                delta = json_data.get('choices', [{}])[0].get('delta', {})
-                                current_content = delta.get('content', '')
-                                
-                                if current_content and current_content != last_content:
-                                    last_content = current_content
-                                    completion_text += current_content
-                                    yield line + '\n'
-                                elif not current_content:
-                                    yield line + '\n'
-                            except:
-                                yield line + '\n'
-                        else:
-                            yield line + '\n'
-                    else:
-                        yield line + '\n'
-            
-            if buffer:
-                yield buffer
-                
-            if completion_text:
-                tokens = len(encoding.encode(completion_text))
-                db.update_token_usage(get_local_today_iso(), model, prompt_tokens + tokens)
-                db.increment_token_usage_count(token_id)
-        
-        return StreamingResponse(generate(), media_type="text/event-stream")
     
-    result = await response.json()
+    # 添加工具调用支持
+    if tools:
+        body['tools'] = tools
+        body['tool_choice'] = tool_choice
+
+    # 处理工具调用对话
+    conversation_messages = messages.copy()
+    tool_call_count = 0
+    
+    while tool_call_count < max_tool_calls:
+        response = await session.post(QWEN_API_ENDPOINT, json=body, headers=headers)
+        if response.status != 200:
+            raise HTTPException(500, f'API error: {response.status}')
+
+        if stream:
+            # 流式响应处理
+            return await _handle_stream_response(response, conversation_messages, token_id, model, encoding, prompt_tokens)
+        
+        result = await response.json()
+        
+        # 检查是否有工具调用
+        has_tool_calls = False
+        if 'choices' in result and len(result['choices']) > 0:
+            choice = result['choices'][0]
+            if 'message' in choice:
+                message = choice['message']
+                if 'tool_calls' in message and message['tool_calls']:
+                    has_tool_calls = True
+        
+        if has_tool_calls:
+            # 处理工具调用
+            tool_executor = get_tool_executor()
+            choice = result['choices'][0]
+            message = choice['message']
+            tool_calls = message['tool_calls']
+            
+            # 添加助手响应到对话
+            conversation_messages.append({
+                "role": "assistant",
+                "content": message.get("content", ""),
+                "tool_calls": tool_calls
+            })
+            
+            # 执行工具调用
+            tool_results = await tool_executor.execute_tool_calls(tool_calls)
+            
+            # 添加工具结果到对话
+            for tool_result in tool_results:
+                conversation_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_result.get("tool_call_id", ""),
+                    "content": tool_result.get("content", "")
+                })
+            
+            # 更新请求体以继续对话
+            body['messages'] = conversation_messages
+            tool_call_count += 1
+        else:
+            # 没有工具调用，返回结果
+            if 'usage' in result:
+                db.update_token_usage(get_local_today_iso(), model, result['usage'].get('total_tokens', 0))
+                db.increment_token_usage_count(token_id)
+            
+            return JSONResponse(result)
+    
+    # 达到最大工具调用次数
     if 'usage' in result:
         db.update_token_usage(get_local_today_iso(), model, result['usage'].get('total_tokens', 0))
         db.increment_token_usage_count(token_id)
     
     return JSONResponse(result)
+
+
+async def _handle_stream_response(response, conversation_messages, token_id, model, encoding, prompt_tokens):
+    """处理流式响应"""
+    tool_executor = get_tool_executor()
+    buffer = ""
+    last_content = ""
+    completion_text = ""
+    tool_calls_detected = False
+    
+    async def generate():
+        nonlocal buffer, last_content, completion_text, tool_calls_detected
+        
+        async for chunk in response.content.iter_any():
+            buffer += chunk.decode('utf-8')
+            
+            while '\n' in buffer:
+                line, buffer = buffer.split('\n', 1)
+                if line.startswith('data:'):
+                    line_data = line[5:].strip()
+                    if line_data and line_data != '[DONE]':
+                        try:
+                            json_data = json.loads(line_data)
+                            delta = json_data.get('choices', [{}])[0].get('delta', {})
+                            current_content = delta.get('content', '')
+                            
+                            # 检查工具调用
+                            if 'tool_calls' in delta:
+                                tool_calls_detected = True
+                            
+                            if current_content and current_content != last_content:
+                                last_content = current_content
+                                completion_text += current_content
+                                yield line + '\n'
+                            elif not current_content:
+                                yield line + '\n'
+                        except:
+                            yield line + '\n'
+                    else:
+                        yield line + '\n'
+                else:
+                    yield line + '\n'
+        
+        if buffer:
+            yield buffer
+            
+        # 更新使用统计
+        if completion_text:
+            tokens = len(encoding.encode(completion_text))
+            db.update_token_usage(get_local_today_iso(), model, prompt_tokens + tokens)
+            db.increment_token_usage_count(token_id)
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")

@@ -36,7 +36,7 @@ class VersionManager:
         except asyncio.TimeoutError:
             pass
         except Exception as e:
-            logger.error(f"版本获取失败: {e}")
+            pass
         
         return self._get_fallback_version()
     
@@ -81,7 +81,6 @@ class VersionManager:
         except asyncio.TimeoutError:
             return self.get_user_agent()
         except Exception as e:
-            logger.warning(f"User-Agent获取失败: {e}")
             return self.get_user_agent()
     
     def get_user_agent(self, version: Optional[str] = None) -> str:
