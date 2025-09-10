@@ -58,7 +58,8 @@ async def lifespan(app: FastAPI):
             pass
 
 async def auto_refresh_tokens():
-    refresh_interval = int(os.getenv('TOKEN_REFRESH_INTERVAL', '14400'))
+    # 每分钟检查一次token是否需要刷新
+    refresh_interval = 60
     
     while True:
         try:
@@ -72,10 +73,8 @@ async def auto_refresh_tokens():
             
             _token_manager.load_tokens()
             if _token_manager.token_store:
-                result = await _token_manager.refresh_all_tokens()
-                
-                success_count = sum(1 for r in result['refreshResults'] if r['success'])
-                total_count = len(result['refreshResults'])
+                # 检查并刷新即将过期的token（在过期前2小时刷新）
+                result = await _token_manager.refresh_expiring_tokens()
                 
             else:
                 pass

@@ -4,12 +4,16 @@ Token management for Qwen Code API Server
 import time
 import random
 import aiohttp
+import logging
 from typing import Dict, Optional, Tuple, List, Any
 from ..models import TokenData, RefreshResult
 from ..database import TokenDatabase
 from ..utils import get_token_id
 from ..utils.timezone_utils import timestamp_to_local_datetime, format_local_datetime
-from ..config import QWEN_OAUTH_TOKEN_ENDPOINT, QWEN_OAUTH_CLIENT_ID
+from ..config import QWEN_OAUTH_TOKEN_ENDPOINT, QWEN_OAUTH_CLIENT_ID, DEBUG
+
+# 设置日志
+logger = logging.getLogger(__name__)
 
 
 class TokenManager:
@@ -179,3 +183,55 @@ class TokenManager:
             return random.choice(valid_tokens)
         
         return None
+    
+    async def refresh_expiring_tokens(self) -> Dict[str, Any]:
+        """
+        检查并刷新即将过期的token（在过期前2小时刷新）
+        """
+        if not self.token_store:
+            return {'success': True, 'message': '没有可用的token'}
+        
+        refresh_results = []
+        tokens_to_remove = []
+        # 提前2小时刷新（毫秒）
+        refresh_threshold = 2 * 60 * 60 * 1000
+        
+        # 记录调试日志
+        logger.debug(f"开始检查token刷新，共有 {len(self.token_store)} 个token")
+        
+        for token_id, token in self.token_store.items():
+            # 检查token是否即将过期（在过期前2小时以内）
+            if token.expires_at:
+                current_time = time.time() * 1000
+                time_to_expiry = token.expires_at - current_time
+                
+                # 记录调试日志
+                logger.debug(f"Token {token_id} 的过期时间: {token.expires_at}, 当前时间: {current_time}, 距离过期: {time_to_expiry}ms")
+                
+                # 如果token即将过期（在2小时内过期），则刷新它
+                if time_to_expiry < refresh_threshold:
+                    logger.debug(f"Token {token_id} 即将过期，开始刷新...")
+                    
+                    refreshed_token = await self._force_refresh_token(token_id, token)
+                    
+                    if refreshed_token:
+                        refresh_results.append({'id': token_id, 'success': True, 'message': 'Token已刷新'})
+                        logger.debug(f"Token {token_id} 刷新成功")
+                    else:
+                        refresh_results.append({'id': token_id, 'success': False, 'error': 'Token刷新失败'})
+                        tokens_to_remove.append(token_id)
+                        logger.debug(f"Token {token_id} 刷新失败，将被移除")
+                else:
+                    logger.debug(f"Token {token_id} 无需刷新")
+        
+        # 移除刷新失败的token
+        for token_id in tokens_to_remove:
+            self.delete_token(token_id)
+        
+        logger.debug(f"Token刷新检查完成，成功刷新 {len([r for r in refresh_results if r['success']])} 个token")
+        
+        return {
+            'success': True,
+            'refreshResults': refresh_results,
+            'remainingTokens': len(self.token_store)
+        }
