@@ -7,7 +7,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from src.config.settings import PORT, HOST, DEBUG
+from src.config.settings import PORT, HOST, DEBUG, LOG_LEVEL
 from src.api import api_router, openai_router
 from src.web import web_router
 from src.oauth import TokenManager
@@ -16,7 +16,8 @@ from src.utils.version_manager import initialize_version_manager, get_version_ma
 from src.utils import initialize_tools
 
 # 设置日志
-logging.basicConfig(level=logging.INFO)
+log_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
+logging.basicConfig(level=log_level)
 logger = logging.getLogger(__name__)
 
 # 全局变量
