@@ -210,17 +210,17 @@ class TokenManager:
                 
                 # 如果token即将过期（在2小时内过期），则刷新它
                 if time_to_expiry < refresh_threshold:
-                    logger.debug(f"Token {token_id} 即将过期，开始刷新...")
+                    logger.info(f"Token {token_id} 即将过期，开始刷新...")
                     
                     refreshed_token = await self._force_refresh_token(token_id, token)
                     
                     if refreshed_token:
                         refresh_results.append({'id': token_id, 'success': True, 'message': 'Token已刷新'})
-                        logger.debug(f"Token {token_id} 刷新成功")
+                        logger.info(f"Token {token_id} 刷新成功")
                     else:
                         refresh_results.append({'id': token_id, 'success': False, 'error': 'Token刷新失败'})
                         tokens_to_remove.append(token_id)
-                        logger.debug(f"Token {token_id} 刷新失败，将被移除")
+                        logger.info(f"Token {token_id} 刷新失败，将被移除")
                 else:
                     logger.debug(f"Token {token_id} 无需刷新")
         
