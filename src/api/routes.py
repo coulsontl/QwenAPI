@@ -107,10 +107,18 @@ async def api_refresh_single_token(request: Request, auth: bool = Depends(check_
     if not token_id:
         raise HTTPException(400, "Missing tokenId")
     
+    logger.info(f"手动刷新单个token: {token_id}")
     token_manager.load_tokens()
     try:
-        return JSONResponse(await token_manager.refresh_single_token(token_id))
+        # 为手动刷新设置版本管理器
+        if _version_manager:
+            token_manager.set_version_manager(_version_manager)
+        
+        result = await token_manager.refresh_single_token(token_id)
+        logger.info(f"手动刷新token {token_id} 结果: {result}")
+        return JSONResponse(result)
     except Exception as e:
+        logger.error(f"手动刷新token {token_id} 失败: {e}", exc_info=True)
         return JSONResponse({'success': False, 'error': str(e)}, 500)
 
 @router.post("/delete-token")
