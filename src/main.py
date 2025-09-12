@@ -87,7 +87,7 @@ async def auto_refresh_tokens():
                 logger.debug(f"发现 {len(_token_manager.token_store)} 个token，开始检查是否需要刷新")
                 # 检查并刷新即将过期的token（在过期前2小时刷新）
                 result = await _token_manager.refresh_expiring_tokens()
-                logger.info(f"Token刷新检查完成: {result}")
+                logger.debug(f"Token刷新检查完成: {result}")
             else:
                 logger.debug("没有可用的token")
                 

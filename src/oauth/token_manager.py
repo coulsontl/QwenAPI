@@ -273,7 +273,7 @@ class TokenManager:
             self.delete_token(token_id)
         
         success_count = len([r for r in refresh_results if r['success']])
-        logger.info(f"Token刷新检查完成，成功刷新 {success_count} 个token")
+        logger.debug(f"Token刷新检查完成，成功刷新 {success_count} 个token")
         
         return {
             'success': True,
