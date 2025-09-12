@@ -231,7 +231,7 @@ class TokenManager:
         refresh_results = []
         tokens_to_remove = [] 
         # 提前2小时刷新（毫秒）
-        refresh_threshold = 2* 60 * 60 * 1000
+        refresh_threshold = 2 * 60 * 60 * 1000
         
         # 记录调试日志
         logger.debug(f"开始检查token刷新，共有 {len(self.token_store)} 个token")
