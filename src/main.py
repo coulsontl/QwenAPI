@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
     
     from src.api.routes import set_version_manager
     set_version_manager(version_manager)
+    _token_manager.set_version_manager(version_manager)
     
     # 初始化工具系统
     try:

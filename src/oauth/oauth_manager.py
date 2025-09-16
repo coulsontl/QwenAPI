@@ -62,7 +62,9 @@ class OAuthManager:
                 )
                 headers['User-Agent'] = user_agent
             except asyncio.TimeoutError:
-                headers['User-Agent'] = 'QwenCode/unknown'
+                headers['User-Agent'] = self._version_manager.get_user_agent()
+            except Exception:
+                headers['User-Agent'] = self._version_manager.get_user_agent()
         
         timeout = aiohttp.ClientTimeout(total=8)
         async with aiohttp.ClientSession(timeout=timeout) as session:
