@@ -78,9 +78,10 @@ class OAuthManager:
             
             async with session.post(QWEN_OAUTH_DEVICE_CODE_ENDPOINT, data=data, headers=headers) as response:
                 if response.status != 200:
+                    reason = getattr(response, 'reason', '') or ''
                     error_text = await response.text()
-                    raise Exception(f'Device authorization failed: {response.status} {response.statusText}. Response: {error_text}')
-                
+                    raise Exception(f'Device authorization failed: {response.status} {reason}. Response: {error_text}')
+
                 result = await response.json()
                 
                 if 'error' in result:
@@ -129,7 +130,8 @@ class OAuthManager:
             return {
                 'success': False,
                 'status': 'pending',
-                'warning': '设备授权码即将过期，请尽快完成授权'
+                'warning': '设备授权码即将过期，请尽快完成授权',
+                'pollInterval': state.poll_interval
             }
         
         try:
@@ -148,41 +150,44 @@ class OAuthManager:
                     if response.status != 200:
                         try:
                             error_data = await response.json()
-                            
+
                             if response.status == 400 and error_data.get('error') == 'authorization_pending':
                                 logger.debug("设备授权尚未完成，stateId: %s", state_id)
                                 return {
                                     'success': False,
                                     'status': 'pending',
-                                    'remainingTime': max(0, int((state.expires_at - now) / 1000)) if state.expires_at else 0
+                                    'remainingTime': max(0, int((state.expires_at - now) / 1000)) if state.expires_at else 0,
+                                    'pollInterval': state.poll_interval
                                 }
-                            
+
                             if response.status == 429 and error_data.get('error') == 'slow_down':
-                                state.pollInterval = min(state.pollInterval * 1.5, 10)
+                                state.poll_interval = min(max(int(state.poll_interval * 1.5), state.poll_interval + 1), 10)
                                 logger.warning("设备授权被要求减速，stateId: %s", state_id)
                                 return {
                                     'success': False,
                                     'status': 'pending',
-                                    'remainingTime': max(0, int((state.expires_at - now) / 1000)) if state.expires_at else 0
+                                    'remainingTime': max(0, int((state.expires_at - now) / 1000)) if state.expires_at else 0,
+                                    'pollInterval': state.poll_interval
                                 }
-                            
+
                             raise Exception(f'Device token poll failed: {error_data.get("error")} - {error_data.get("error_description", "")}')
-                        except:
+                        except Exception:
                             error_text = await response.text()
-                            raise Exception(f'Device token poll failed: {response.status} {response.statusText}. Response: {error_text}')
-                    
+                            reason = getattr(response, 'reason', '') or ''
+                            raise Exception(f'Device token poll failed: {response.status} {reason}. Response: {error_text}')
+
                     token_response = await response.json()
-                    
+
                     token_data = TokenData(
                         access_token=token_response['access_token'],
                         refresh_token=token_response['refresh_token'],
                         expires_at=int(time.time() * 1000) + token_response.get('expires_in', 3600) * 1000,
                         uploaded_at=int(time.time() * 1000)
                     )
-                    
+
                     self.oauth_states.pop(state_id, None)
                     logger.info("设备授权成功，stateId: %s", state_id)
-                    
+
                     return {
                         'success': True,
                         'tokenData': token_data,
@@ -197,7 +202,8 @@ class OAuthManager:
                 logger.debug("OAuth 轮询仍在等待，stateId: %s", state_id)
                 return {
                     'success': False,
-                    'status': 'pending'
+                    'status': 'pending',
+                    'pollInterval': state.poll_interval
                 }
     
     def cancel_oauth(self, state_id: str) -> Dict[str, Any]:

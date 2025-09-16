@@ -42,6 +42,13 @@ async def get_session() -> aiohttp.ClientSession:
         )
     return _session
 
+async def cleanup_session():
+    """清理全局 aiohttp ClientSession 资源"""
+    global _session
+    if _session and not _session.closed:
+        await _session.close()
+        _session = None
+
 router = APIRouter()
 db = TokenDatabase()
 oauth_manager = OAuthManager()

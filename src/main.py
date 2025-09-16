@@ -64,13 +64,23 @@ async def lifespan(app: FastAPI):
     logger.info("启动 token 自动刷新任务")
     
     yield
-    
+
+    # 清理资源
     if _refresh_task:
         _refresh_task.cancel()
         try:
             await _refresh_task
         except asyncio.CancelledError:
             logger.debug("自动刷新任务已取消")
+
+    # 清理 aiohttp ClientSession
+    try:
+        from src.api.routes import cleanup_session
+        await cleanup_session()
+        logger.debug("aiohttp ClientSession 资源已清理")
+    except Exception:
+        logger.exception("清理 aiohttp ClientSession 时发生异常")
+
     logger.info("应用生命周期结束，资源清理完成")
 
 async def auto_refresh_tokens():

@@ -132,31 +132,22 @@ class ToolRegistry:
                 
             param_type = param.annotation
             default = param.default
-            
-            if param_type == inspect.Parameter.empty:
-                param_type = str
-            elif param_type == int:
+
+            type_str = "string"
+            if param_type == int:
                 type_str = "integer"
             elif param_type == float:
                 type_str = "number"
             elif param_type == bool:
                 type_str = "boolean"
-            elif param_type == str:
-                type_str = "string"
             elif hasattr(param_type, '__origin__'):
-                if param_type.__origin__ == list:
+                origin = getattr(param_type, '__origin__', None)
+                if origin == list:
                     type_str = "array"
-                elif param_type.__origin__ == dict:
+                elif origin == dict:
                     type_str = "object"
-                else:
-                    type_str = "string"
-            else:
-                type_str = "string"
-            
+
             param_property = {"type": type_str}
-            
-            if param.description:
-                param_property["description"] = param.description
             
             if default != inspect.Parameter.empty:
                 param_property["default"] = default
