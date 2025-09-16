@@ -4,12 +4,15 @@ Token management for Qwen Code API Server
 import time
 import random
 import aiohttp
+import logging
 from typing import Dict, Optional, Tuple, List, Any
-from ..models import TokenData, RefreshResult
+from ..models import TokenData
 from ..database import TokenDatabase
 from ..utils import get_token_id
 from ..utils.timezone_utils import timestamp_to_local_datetime, format_local_datetime
 from ..config import QWEN_OAUTH_TOKEN_ENDPOINT, QWEN_OAUTH_CLIENT_ID
+
+logger = logging.getLogger(__name__)
 
 
 class TokenManager:
@@ -24,18 +27,22 @@ class TokenManager:
     
     def load_tokens(self) -> None:
         self.token_store = self.db.load_all_tokens()
+        logger.debug("Token 数据已加载，数量: %s", len(self.token_store))
     
     def save_token(self, token_id: str, token_data: TokenData) -> None:
         self.token_store[token_id] = token_data
         self.db.save_token(token_id, token_data)
+        logger.info("已保存/更新 token，ID: %s", token_id)
     
     def delete_token(self, token_id: str) -> None:
         self.token_store.pop(token_id, None)
         self.db.delete_token(token_id)
+        logger.info("已删除 token，ID: %s", token_id)
     
     def delete_all_tokens(self) -> None:
         self.token_store.clear()
         self.db.delete_all_tokens()
+        logger.warning("已清空所有 token 数据")
     
     def get_token_status(self) -> Dict[str, Any]:
         token_list = []
@@ -79,9 +86,10 @@ class TokenManager:
             raise Exception("Token不存在")
         
         # 强制刷新单个token
-        refreshed_token = await self._force_refresh_token(token_id, token)
+        refreshed_token, should_remove, error_message = await self._force_refresh_token(token_id, token)
         
         if refreshed_token:
+            logger.info("单个 token 刷新成功，ID: %s", token_id)
             return {
                 'success': True,
                 'tokenId': token_id,
@@ -89,10 +97,15 @@ class TokenManager:
             }
         else:
             # 刷新失败，移除token
-            self.delete_token(token_id)
-            raise Exception("Token刷新失败，已删除")
+            if should_remove:
+                self.delete_token(token_id)
+                logger.error("单个 token 刷新失败，已移除，ID: %s", token_id)
+                raise Exception("Token刷新失败，已删除")
+            logger.warning("单个 token 刷新失败，准备稍后重试，ID: %s", token_id)
+            raise Exception(error_message or "Token刷新失败，请稍后重试")
     
-    async def _force_refresh_token(self, token_id: str, token: TokenData) -> Optional[TokenData]:
+    async def _force_refresh_token(self, token_id: str, token: TokenData) -> Tuple[Optional[TokenData], bool, Optional[str]]:
+        """刷新 token，返回 (刷新后的 token, 是否应删除, 错误信息)"""
         try:
             headers = {}
             if self._version_manager:
@@ -106,15 +119,24 @@ class TokenManager:
                 
                 async with session.post(QWEN_OAUTH_TOKEN_ENDPOINT, data=data, headers=headers) as response:
                     if response.status != 200:
-                        return None
+                        error_text = await response.text()
+                        logger.warning("刷新 token 请求失败，状态码: %s，ID: %s", response.status, token_id)
+                        should_remove = response.status in (400, 401, 403)
+                        return None, should_remove, error_text or f"HTTP {response.status}"
                     
                     try:
                         result = await response.json()
                     except Exception as json_error:
-                        return None
+                        logger.error("解析刷新 token 响应失败，ID: %s，错误: %s", token_id, json_error)
+                        return None, False, f"解析响应失败: {json_error}"
                     
                     if 'error' in result:
-                        return None
+                        error_code = str(result.get('error'))
+                        logger.warning("刷新 token 返回错误，ID: %s，错误: %s", token_id, error_code)
+                        should_remove = error_code in {'invalid_grant', 'invalid_client', 'unauthorized_client'}
+                        description = result.get('error_description') or result.get('message')
+                        error_message = f"{error_code}: {description}" if description else error_code
+                        return None, should_remove, error_message
                     
                     updated_token = TokenData(
                         access_token=result['access_token'],
@@ -126,9 +148,10 @@ class TokenManager:
                     
                     self.save_token(token_id, updated_token)
                     
-                    return updated_token
+                    return updated_token, False, None
         except Exception as error:
-            return None
+            logger.exception("刷新 token 过程中出现异常，ID: %s", token_id)
+            return None, False, str(error)
     
     async def refresh_all_tokens(self) -> Dict[str, Any]:
         if not self.token_store:
@@ -138,16 +161,22 @@ class TokenManager:
         tokens_to_remove = []
         
         for token_id, token in self.token_store.items():
-            refreshed_token = await self._force_refresh_token(token_id, token)
+            refreshed_token, should_remove, error_message = await self._force_refresh_token(token_id, token)
             
             if refreshed_token:
                 refresh_results.append({'id': token_id, 'success': True})
             else:
-                refresh_results.append({'id': token_id, 'success': False, 'error': 'Token刷新失败'})
-                tokens_to_remove.append(token_id)
+                refresh_results.append({
+                    'id': token_id,
+                    'success': False,
+                    'error': error_message or 'Token刷新失败'
+                })
+                if should_remove:
+                    tokens_to_remove.append(token_id)
         
         for token_id in tokens_to_remove:
             self.delete_token(token_id)
+            logger.error("批量刷新失败，已移除 token，ID: %s", token_id)
         
         return {
             'success': True,
@@ -171,11 +200,15 @@ class TokenManager:
             if not is_expired:
                 valid_tokens.append((token_id, token))
             else:
-                refreshed_token = await self._force_refresh_token(token_id, token)
+                refreshed_token, should_remove, _ = await self._force_refresh_token(token_id, token)
                 if refreshed_token:
                     valid_tokens.append((token_id, refreshed_token))
+                elif should_remove:
+                    self.delete_token(token_id)
+                    logger.warning("在获取可用 token 时检测到无效 token，已删除，ID: %s", token_id)
         
         if valid_tokens:
+            logger.debug("找到可用 token，数量: %s", len(valid_tokens))
             return random.choice(valid_tokens)
         
         return None

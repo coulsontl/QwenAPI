@@ -3,10 +3,13 @@ Database management for Qwen Code API Server
 """
 import sqlite3
 import time
+import logging
 from typing import Dict
 from ..models import TokenData
 import os
 from ..config import DATABASE_URL, DATABASE_TABLE_NAME
+
+logger = logging.getLogger(__name__)
 
 class TokenDatabase:
     
@@ -17,6 +20,7 @@ class TokenDatabase:
         self._migrate_db()
         self._cache = {}
         self._cache_ttl = 60
+        logger.debug("Token 数据库初始化完成，路径: %s", os.path.abspath(self.db_path))
     
     def _ensure_directory_exists(self):
         db_dir = os.path.dirname(os.path.abspath(self.db_path))
@@ -43,6 +47,7 @@ class TokenDatabase:
                     )
                 ''')
             conn.commit()
+        logger.debug("数据库迁移检查完成")
 
     def init_db(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -103,6 +108,7 @@ class TokenDatabase:
                   token_data.expires_at, token_data.uploaded_at, token_data.usage_count))
             conn.commit()
         self._invalidate_cache()
+        logger.debug("已保存 token 到数据库，ID: %s", token_id)
 
     def load_all_tokens(self) -> Dict[str, TokenData]:
         cache_key = self._get_cache_key("load_all_tokens")
@@ -125,6 +131,7 @@ class TokenDatabase:
                 )
         
         self._cache_result(cache_key, tokens)
+        logger.debug("从数据库读取 token 完成，数量: %s", len(tokens))
         return tokens
 
     def delete_token(self, token_id: str) -> None:
@@ -133,6 +140,7 @@ class TokenDatabase:
             cursor.execute(f'DELETE FROM {DATABASE_TABLE_NAME} WHERE id = ?', (token_id,))
             conn.commit()
         self._invalidate_cache()
+        logger.debug("已从数据库删除 token，ID: %s", token_id)
 
     def delete_all_tokens(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
@@ -140,6 +148,7 @@ class TokenDatabase:
             cursor.execute(f'DELETE FROM {DATABASE_TABLE_NAME}')
             conn.commit()
         self._invalidate_cache()
+        logger.warning("数据库 token 表已清空")
 
     def update_token_usage(self, date: str, model_name: str, tokens: int):
         with sqlite3.connect(self.db_path) as conn:
@@ -153,6 +162,7 @@ class TokenDatabase:
             ''', (date, model_name, tokens))
             conn.commit()
         self._invalidate_cache()
+        logger.debug("已更新使用统计，日期: %s，模型: %s，累计 tokens: %s", date, model_name, tokens)
 
     def get_usage_stats(self, date: str) -> Dict:
         cache_key = self._get_cache_key("get_usage_stats", date)
@@ -177,6 +187,7 @@ class TokenDatabase:
             }
             
             self._cache_result(cache_key, result)
+            logger.debug("读取使用统计完成，日期: %s，总 tokens: %s", date, total_tokens)
             return result
 
     def delete_usage_stats(self, date: str) -> int:
@@ -186,6 +197,7 @@ class TokenDatabase:
             deleted_count = cursor.rowcount
             conn.commit()
         self._invalidate_cache()
+        logger.info("已删除指定日期的使用统计，日期: %s，删除条数: %s", date, deleted_count)
         return deleted_count
 
     def increment_token_usage_count(self, token_id: str):
@@ -193,6 +205,7 @@ class TokenDatabase:
             cursor = conn.cursor()
             cursor.execute(f"UPDATE {DATABASE_TABLE_NAME} SET usage_count = usage_count + 1 WHERE id = ?", (token_id,))
             conn.commit()
+        logger.debug("已更新 token 使用次数，ID: %s", token_id)
 
     def get_available_dates(self) -> list:
         cache_key = self._get_cache_key("get_available_dates")
@@ -206,6 +219,7 @@ class TokenDatabase:
             dates = [row[0] for row in cursor.fetchall()]
             
             self._cache_result(cache_key, dates)
+            logger.debug("已获取可用使用统计日期，总数: %s", len(dates))
             return dates
 
     def save_app_version(self, version: str) -> None:
@@ -217,6 +231,7 @@ class TokenDatabase:
             ''', ('qwen_code', version, int(time.time() * 1000)))
             conn.commit()
         self._invalidate_cache()
+        logger.info("已保存应用版本号: %s", version)
 
     def get_app_version(self) -> str:
         cache_key = self._get_cache_key("get_app_version")
@@ -232,4 +247,5 @@ class TokenDatabase:
             
             if version:
                 self._cache_result(cache_key, version)
+                logger.debug("成功读取应用版本号: %s", version)
             return version

@@ -52,6 +52,7 @@ class OAuthManager:
     
     async def _init_oauth_internal(self) -> Dict[str, Any]:
         code_verifier, code_challenge = await generate_pkce_pair()
+        logger.debug("已生成 PKCE 参数")
         
         headers = {}
         if self._version_manager:
@@ -61,6 +62,7 @@ class OAuthManager:
                     timeout=3
                 )
                 headers['User-Agent'] = user_agent
+                logger.debug("初始化 OAuth 时使用自定义 User-Agent")
             except asyncio.TimeoutError:
                 headers['User-Agent'] = self._version_manager.get_user_agent()
             except Exception:
@@ -96,6 +98,7 @@ class OAuthManager:
                 
                 state_id = generate_state_id()
                 self.oauth_states[state_id] = auth_state
+                logger.info("设备授权流程启动，stateId: %s", state_id)
                 
                 return {
                     'success': True,
@@ -110,16 +113,19 @@ class OAuthManager:
     async def poll_oauth_status(self, state_id: str) -> Dict[str, Any]:
         state = self.oauth_states.get(state_id)
         if not state:
+            logger.warning("OAuth 轮询失败，stateId 无效: %s", state_id)
             raise Exception("无效的stateId")
         
         # 检查是否过期
         now = int(time.time() * 1000)
         if state.expires_at and now > state.expires_at + 10000:
             self.oauth_states.pop(state_id, None)
+            logger.warning("设备授权码已过期，stateId: %s", state_id)
             raise Exception("设备授权码已过期")
         
         # 如果接近过期，提醒用户
         if state.expires_at and now > state.expires_at - 60000:
+            logger.debug("设备授权码即将过期，stateId: %s", state_id)
             return {
                 'success': False,
                 'status': 'pending',
@@ -144,6 +150,7 @@ class OAuthManager:
                             error_data = await response.json()
                             
                             if response.status == 400 and error_data.get('error') == 'authorization_pending':
+                                logger.debug("设备授权尚未完成，stateId: %s", state_id)
                                 return {
                                     'success': False,
                                     'status': 'pending',
@@ -152,6 +159,7 @@ class OAuthManager:
                             
                             if response.status == 429 and error_data.get('error') == 'slow_down':
                                 state.pollInterval = min(state.pollInterval * 1.5, 10)
+                                logger.warning("设备授权被要求减速，stateId: %s", state_id)
                                 return {
                                     'success': False,
                                     'status': 'pending',
@@ -173,6 +181,7 @@ class OAuthManager:
                     )
                     
                     self.oauth_states.pop(state_id, None)
+                    logger.info("设备授权成功，stateId: %s", state_id)
                     
                     return {
                         'success': True,
@@ -182,8 +191,10 @@ class OAuthManager:
         except Exception as error:
             if any(keyword in str(error).lower() for keyword in ['timed out', 'expired', 'invalid', '401']):
                 self.oauth_states.pop(state_id, None)
+                logger.warning("OAuth 轮询失败，stateId: %s，错误: %s", state_id, error)
                 raise Exception(str(error))
             else:
+                logger.debug("OAuth 轮询仍在等待，stateId: %s", state_id)
                 return {
                     'success': False,
                     'status': 'pending'
@@ -192,6 +203,7 @@ class OAuthManager:
     def cancel_oauth(self, state_id: str) -> Dict[str, Any]:
         if state_id:
             self.oauth_states.pop(state_id, None)
+            logger.info("已取消 OAuth 流程，stateId: %s", state_id)
         
         return {
             'success': True,

@@ -50,6 +50,7 @@ class ToolRegistry:
             self.tool_functions[name] = func
             self.tool_schemas[name] = parameters
             
+            logger.debug("注册工具成功，名称: %s", name)
             return True
             
         except Exception as e:
@@ -61,6 +62,7 @@ class ToolRegistry:
             del self.tools[name]
             del self.tool_functions[name]
             del self.tool_schemas[name]
+            logger.debug("已注销工具，名称: %s", name)
             return True
         return False
     
@@ -78,6 +80,7 @@ class ToolRegistry:
     
     async def execute_tool(self, name: str, arguments: Dict[str, Any]) -> ToolResult:
         if not self.has_tool(name):
+            logger.warning("尝试执行不存在的工具: %s", name)
             return ToolResult(
                 success=False,
                 content="",
@@ -101,6 +104,7 @@ class ToolRegistry:
             else:
                 result = func(**arguments)
             
+            logger.debug("工具执行成功，名称: %s", name)
             if isinstance(result, dict):
                 content = json.dumps(result, ensure_ascii=False)
             elif isinstance(result, (str, int, float, bool)):

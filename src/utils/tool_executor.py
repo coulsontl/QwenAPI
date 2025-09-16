@@ -75,6 +75,7 @@ class ToolCallExecutor:
                 
                 function_name = function_info.get("name")
                 arguments_str = function_info.get("arguments", "{}")
+                logger.debug("执行工具调用，tool_call_id: %s，函数: %s", tool_call_id, function_name)
                 
                 if not function_name:
                     results.append({
@@ -88,16 +89,19 @@ class ToolCallExecutor:
                     arguments = json.loads(arguments_str)
                 except json.JSONDecodeError:
                     arguments = {}
+                    logger.warning("工具调用参数非 JSON 格式，tool_call_id: %s", tool_call_id)
                 
                 result = await self.tool_registry.execute_tool(function_name, arguments)
                 
                 if result.success:
+                    logger.debug("工具调用执行成功，tool_call_id: %s", tool_call_id)
                     results.append({
                         "tool_call_id": tool_call_id,
                         "role": "tool",
                         "content": result.content
                     })
                 else:
+                    logger.warning("工具调用执行失败，tool_call_id: %s，错误: %s", tool_call_id, result.error)
                     results.append({
                         "tool_call_id": tool_call_id,
                         "role": "tool",

@@ -32,11 +32,12 @@ class VersionManager:
             )
             if version:
                 await self._update_cache_and_storage(version)
+                logger.info("成功获取远端最新版本号: %s", version)
                 return version
         except asyncio.TimeoutError:
-            pass
+            logger.warning("获取版本信息超时，将使用本地缓存")
         except Exception as e:
-            pass
+            logger.exception("获取版本信息失败: %s", e)
         
         return self._get_fallback_version()
     
@@ -48,9 +49,11 @@ class VersionManager:
                     return version
             except Exception as e:
                 if attempt == self.MAX_RETRIES:
+                    logger.error("多次尝试后仍无法获取版本信息，尝试次数: %s", attempt + 1)
                     raise
+                logger.warning("获取版本信息失败，准备重试 (第 %s 次)，错误: %s", attempt + 1, e)
                 await asyncio.sleep(1 * (attempt + 1))
-        
+
         return None
     
     def _get_fallback_version(self) -> str:
@@ -108,11 +111,11 @@ class VersionManager:
                         if version:
                             return version
         except asyncio.TimeoutError:
-            pass
-        except aiohttp.ClientError:
-            pass
-        except Exception:
-            pass
+            logger.warning("请求版本注册表超时")
+        except aiohttp.ClientError as client_error:
+            logger.error("请求版本注册表发生客户端错误: %s", client_error)
+        except Exception as error:
+            logger.exception("请求版本注册表失败: %s", error)
         
         return None
     
@@ -120,6 +123,7 @@ class VersionManager:
         self._cached_version = version
         self._cache_timestamp = time.time()
         self.db.save_app_version(version)
+        logger.debug("版本信息已写入缓存和数据库: %s", version)
 
 
 _version_manager: Optional[VersionManager] = None
