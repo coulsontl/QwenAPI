@@ -159,8 +159,22 @@ class TokenManager:
         
         refresh_results = []
         tokens_to_remove = []
+        current_time_ms = time.time() * 1000
+        refresh_threshold_ms = 2 * 60 * 60 * 1000  # 刷新时间阈值（毫秒）
         
         for token_id, token in self.token_store.items():
+            # 检查是否需要刷新：如果距离过期时间大于阈值，则跳过刷新
+            if token.expires_at and (token.expires_at - current_time_ms) > refresh_threshold_ms:
+                remaining_hours = (token.expires_at - current_time_ms) / (60 * 60 * 1000)
+                refresh_results.append({
+                    'id': token_id, 
+                    'success': True, 
+                    'skipped': True,
+                    'reason': f'距离过期还有{remaining_hours:.1f}小时，跳过刷新'
+                })
+                logger.debug("Token距离过期还有%.1f小时，跳过刷新，ID: %s", remaining_hours, token_id)
+                continue
+                
             refreshed_token, should_remove, error_message = await self._force_refresh_token(token_id, token)
             
             if refreshed_token:

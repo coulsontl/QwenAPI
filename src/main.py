@@ -84,7 +84,7 @@ async def lifespan(app: FastAPI):
     logger.info("应用生命周期结束，资源清理完成")
 
 async def auto_refresh_tokens():
-    refresh_interval = int(os.getenv('TOKEN_REFRESH_INTERVAL', '14400'))
+    refresh_interval = int(os.getenv('TOKEN_REFRESH_INTERVAL', '60'))
     logger.info("自动刷新任务已启动，刷新间隔: %s 秒", refresh_interval)
     
     while True:
@@ -104,7 +104,7 @@ async def auto_refresh_tokens():
                 
                 success_count = sum(1 for r in result['refreshResults'] if r['success'])
                 total_count = len(result['refreshResults'])
-                logger.info("自动刷新 token 完成，成功: %s/%s", success_count, total_count)
+                logger.debug("自动刷新 token 完成，成功: %s/%s", success_count, total_count)
                 
             else:
                 logger.info("自动刷新任务跳过执行，未找到可刷新 token")

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class VersionManager:
     
-    REGISTRY_URL = "https://registry.npmjs.org/@qwen-code/qwen-code/latest"
+    REGISTRY_URL = "https://registry.npmmirror.com/@qwen-code/qwen-code/latest"
     DEFAULT_VERSION = "0.0.10"
     CACHE_TTL = 3600
     REQUEST_TIMEOUT = 5
@@ -32,7 +32,7 @@ class VersionManager:
             )
             if version:
                 await self._update_cache_and_storage(version)
-                logger.info("成功获取远端最新版本号: %s", version)
+                logger.debug("成功获取远端最新版本号: %s", version)
                 return version
         except asyncio.TimeoutError:
             logger.warning("获取版本信息超时，将使用本地缓存")

@@ -231,7 +231,7 @@ class TokenDatabase:
             ''', ('qwen_code', version, int(time.time() * 1000)))
             conn.commit()
         self._invalidate_cache()
-        logger.info("已保存应用版本号: %s", version)
+        logger.debug("已保存应用版本号: %s", version)
 
     def get_app_version(self) -> str:
         cache_key = self._get_cache_key("get_app_version")
