@@ -5,6 +5,7 @@ import time
 import random
 import aiohttp
 import logging
+import os
 from typing import Dict, Optional, Tuple, List, Any
 from ..models import TokenData
 from ..database import TokenDatabase
@@ -156,11 +157,12 @@ class TokenManager:
     async def refresh_all_tokens(self) -> Dict[str, Any]:
         if not self.token_store:
             raise Exception("没有可用的token")
-        
+
         refresh_results = []
         tokens_to_remove = []
         current_time_ms = time.time() * 1000
-        refresh_threshold_ms = 2 * 60 * 60 * 1000  # 刷新时间阈值（毫秒）
+        # 从环境变量读取刷新时间阈值，默认为2小时（毫秒）
+        refresh_threshold_ms = int(os.getenv('TOKEN_REFRESH_THRESHOLD_SECONDS', '7200')) * 1000
         
         for token_id, token in self.token_store.items():
             # 检查是否需要刷新：如果距离过期时间大于阈值，则跳过刷新

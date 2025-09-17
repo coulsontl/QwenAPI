@@ -85,8 +85,9 @@ QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
 QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
 QWEN_OAUTH_SCOPE=openid profile email model.completion
 
-# Auto refresh configuration (seconds, default 4 hours = 14400 seconds)
-TOKEN_REFRESH_INTERVAL=14400
+# Token refresh threshold (seconds, default 2 hours = 7200 seconds)
+# When the remaining validity period of the token is greater than this value, the refresh will be skipped
+TOKEN_REFRESH_THRESHOLD_SECONDS=7200
 ```
 
 ## 📖 Usage Guide

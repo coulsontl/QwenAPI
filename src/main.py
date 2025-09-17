@@ -84,9 +84,10 @@ async def lifespan(app: FastAPI):
     logger.info("应用生命周期结束，资源清理完成")
 
 async def auto_refresh_tokens():
-    refresh_interval = int(os.getenv('TOKEN_REFRESH_INTERVAL', '60'))
+    # Token自动刷新间隔固定为60秒
+    refresh_interval = 60
     logger.info("自动刷新任务已启动，刷新间隔: %s 秒", refresh_interval)
-    
+
     while True:
         try:
             await asyncio.sleep(refresh_interval)
