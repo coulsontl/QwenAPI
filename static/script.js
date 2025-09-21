@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const oauthDetails = document.getElementById('oauth-details');
     const oauthInstructions = document.getElementById('oauth-instructions');
     const oauthCancelBtn = document.getElementById('oauth-cancel-btn');
+    const refreshTokenStatusBtn = document.getElementById('refresh-token-status-btn');
     
     let userPassword = '';
     let oauthStateId = null;
@@ -210,6 +211,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (oauthCancelBtn) {
         oauthCancelBtn.addEventListener('click', cancelOAuthLogin);
+    }
+    
+    if (refreshTokenStatusBtn) {
+        refreshTokenStatusBtn.addEventListener('click', async function() {
+            // 显示loading状态
+            refreshTokenStatusBtn.disabled = true;
+            refreshTokenStatusBtn.classList.add('loading');
+            
+            try {
+                await checkTokenStatus();
+                addStatusMessage('Token状态已重新加载', 'success', 3000);
+            } catch (error) {
+                addStatusMessage('重新加载失败: ' + error.message, 'error', 3000);
+            } finally {
+                // 恢复原始状态
+                refreshTokenStatusBtn.disabled = false;
+                refreshTokenStatusBtn.classList.remove('loading');
+            }
+        });
     }
     
     const manualOpenBtn = document.getElementById('manual-open-btn');

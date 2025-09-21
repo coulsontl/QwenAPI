@@ -471,6 +471,72 @@ pre {
     padding: 0;
     background: none;
 }
+
+#refresh-token-status-btn {
+    background: none;
+    color: #666;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refresh-icon {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #666;
+    border-right: 0.25px solid transparent;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    box-sizing: border-box;
+}
+
+#refresh-token-status-btn:hover {
+    background-color: rgba(102, 102, 102, 0.1);
+    color: #333;
+    transform: translateY(-1px);
+}
+
+#refresh-token-status-btn:hover .refresh-icon {
+    border-color: #333;
+}
+
+#refresh-token-status-btn:active {
+    transform: translateY(0);
+}
+
+#refresh-token-status-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#refresh-token-status-btn:disabled:hover {
+    background-color: transparent;
+    color: #666;
+    transform: none;
+}
+
+#refresh-token-status-btn:disabled:hover .refresh-icon {
+    border-color: #666;
+}
+
+/* Loading动画 */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#refresh-token-status-btn.loading .refresh-icon {
+    animation: spin 1s linear infinite;
+}
 #token-status {
     margin-bottom: 15px;
     background-color: white;
