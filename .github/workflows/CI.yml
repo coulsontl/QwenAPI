@@ -8,8 +8,6 @@ on:
     branches: [ "iflow" ]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: iflow-cli-api
   DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/iflow-cli-api
 
 jobs:
@@ -48,28 +46,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-      - name: Extract metadata for GHCR
-        id: meta-ghcr
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=raw,value=latest
 
       - name: Extract metadata for DockerHub
         id: meta-dockerhub
@@ -87,11 +68,7 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ steps.meta-ghcr.outputs.tags }}
-            ${{ steps.meta-dockerhub.outputs.tags }}
-          labels: |
-            ${{ steps.meta-ghcr.outputs.labels }}
-            ${{ steps.meta-dockerhub.outputs.labels }}
+          tags: ${{ steps.meta-dockerhub.outputs.tags }}
+          labels: ${{ steps.meta-dockerhub.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
