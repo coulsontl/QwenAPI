@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qwen Code API 管理器</title>
-    <link rel=icon href=https://assets.alicdn.com/g/qwenweb/qwen-webui-fe/0.0.190/favicon.png>
-    <link rel=apple-touch-icon href=https://assets.alicdn.com/g/qwenweb/qwen-webui-fe/0.0.190/favicon.png>
+    <title>iFlow-Cli API 管理器</title>
+    <link rel=icon href=https://platform.iflow.cn/img/favicon.ico>
+    <link rel=apple-touch-icon href=https://platform.iflow.cn/img/favicon.ico>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div id="status-container" class="status-container" style="display: none;"></div>
     
     <div class="container">
-        <h1>🤖 Qwen Code API 管理器</h1>
+        <h1>🤖 iFlow-Cli API 管理器</h1>
         
         <div id="login-section" class="section">
             <h2>🔐 登录</h2>
@@ -39,7 +39,7 @@
                         🔑 OAuth 登录获取 Token
                     </button>
                     <div style="margin-top: 10px;">
-                        <span style="color: #666; font-size: 14px;">通过 Qwen 官网 OAuth 认证自动获取凭证</span>
+                        <span style="color: #666; font-size: 14px;">通过 iFlow 官网 OAuth 认证自动获取凭证</span>
                     </div>
                 </div>
                 
@@ -129,8 +129,8 @@
                 <div class="form-group">
                     <label for="model">模型:</label>
                     <select id="model">
-                        <option value="qwen3-coder-plus">qwen3-coder-plus</option>
-                        <option value="qwen3-coder-flash">qwen3-coder-flash</option>
+                        <option value="qwen3-coder">qwen3-coder</option>
+                        <option value="glm-4.5">glm-4.5</option>
                     </select>
                 </div>
                 <button id="send-btn">发送请求</button>
@@ -146,20 +146,20 @@
                 <h3>🔑 OAuth 登录方式（推荐）</h3>
                 <ol>
                     <li>点击"OAuth 登录获取 Token"按钮</li>
-                    <li>系统自动打开 QWen 授权页面</li>
+                    <li>系统自动打开 iFlow 授权页面</li>
                     <li>授权完成后，系统会自动获取并保存 token</li>
                 </ol>
                 
                 <h3>📁 文件上传方式</h3>
                 <ol>
-                    <li>从本地 ~/.qwen/oauth_creds.json 文件复制内容</li>
+                    <li>从本地 ~/.iflow/oauth_creds.json 文件复制内容</li>
                     <li>将文件拖拽到上传区域或点击选择文件</li>
                     <li>系统会自动解析并显示token状态</li>
                 </ol>
                 
                 <h3>💬 使用 API</h3>
                 <ol>
-                    <li>使用API测试区域与Qwen Code进行交互</li>
+                    <li>使用API测试区域与iFlow-Cli进行交互</li>
                     <li>系统会自动刷新过期的token，无需手动操作</li>
                 </ol>
             </div>

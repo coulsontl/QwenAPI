@@ -14,6 +14,8 @@ from src.oauth import TokenManager
 from src.database import TokenDatabase
 from src.utils.version_manager import initialize_version_manager, get_version_manager
 from src.utils import initialize_tools
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 # 设置日志
 LOG_LEVEL = getattr(logging, str(CONFIG_LOG_LEVEL).upper(), logging.INFO)
@@ -117,7 +119,7 @@ async def auto_refresh_tokens():
             logger.exception("自动刷新 token 任务执行失败，将在 300 秒后重试")
             await asyncio.sleep(300)
 
-app = FastAPI(title="Qwen Code API Server", lifespan=lifespan)
+app = FastAPI(title="iFlow-Cli API Server", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -134,6 +136,31 @@ if os.path.exists(static_path):
 app.include_router(web_router)
 app.include_router(api_router, prefix="/api")
 app.include_router(openai_router)
+
+@app.get("/oauth2callback")
+async def oauth2callback(code: str = None, state: str = None):
+    """OAuth2 回调接口，接收授权码和状态参数"""
+    if not code or not state:
+        logger.warning("OAuth2 回调缺少必要参数，code: %s, state: %s", code, state)
+        return JSONResponse({
+            'success': False,
+            'error': 'Missing required parameters',
+            'error_description': 'code and state parameters are required'
+        }, 400)
+    
+    try:
+        # 使用routes.py中的oauth_manager实例
+        from src.api.routes import oauth_manager
+        result = await oauth_manager.handle_oauth_callback(code, state)
+        logger.info("OAuth2 回调处理成功，state: %s", state)
+        return JSONResponse(result)
+    except Exception as e:
+        logger.exception("OAuth2 回调处理失败，state: %s", state)
+        return JSONResponse({
+            'success': False,
+            'error': 'Callback processing failed',
+            'error_description': str(e)
+        }, 500)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)

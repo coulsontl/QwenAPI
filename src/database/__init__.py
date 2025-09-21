@@ -1,4 +1,4 @@
 """
-Database module for Qwen Code API Server
+Database module for iFlow-Cli API Server
 """
 from .token_db import TokenDatabase

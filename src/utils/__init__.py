@@ -1,5 +1,5 @@
 """
-Utilities module for Qwen Code API Server
+Utilities module for iFlow-Cli API Server
 """
 from .helpers import generate_state_id, get_token_id, generate_pkce_pair, verify_password
 from .tool_registry import get_tool_registry

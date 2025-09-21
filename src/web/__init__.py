@@ -1,5 +1,5 @@
 """
-Web interface module for Qwen Code API Server
+Web interface module for iFlow-Cli API Server
 """
 from .web_routes import router as web_router
 

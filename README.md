@@ -1,20 +1,22 @@
-# Qwen API Server
+# iFlow-Cli API Server
 
-🚀 **Qwen Code API Server** - 基于FastAPI的Qwen模型API服务器，完全兼容OpenAI API格式
+🚀 **iFlow-Cli API Server** - 基于FastAPI的Qwen模型API服务器，完全兼容OpenAI API格式
 
 [English Version](README_en.md) | 中文版本
 
 ## ✨ 功能特性
 
 - 🔐 **密码保护访问** - 支持环境变量配置的访问控制
-- 🔑 **OAuth设备码授权** - 一键获取和刷新Token
-- 💬 **OpenAI兼容API** - 100%兼容OpenAI客户端
-- 🔄 **自动Token管理** - 智能Token刷新和状态监控
-- 📊 **实时用量统计** - 按日期统计API调用量
-- 🐳 **Docker化部署** - 支持Docker和Docker Compose
-- 🌐 **Web管理界面** - 直观的Token管理界面
+- 🔑 **OAuth2授权码流程** - 支持完整的OAuth2授权码流程
+- 👤 **用户信息管理** - 自动获取和存储用户信息，支持用户名显示
+- 💬 **OpenAI兼容API** - 100%兼容OpenAI客户端，支持多种模型
+- 🔄 **智能Token管理** - 自动Token刷新和状态监控，优先使用API Key
+- 📊 **实时用量统计** - 按日期统计API调用量和使用情况
+- 🐳 **Docker化部署** - 支持Docker和Docker Compose，自动构建发布
+- 🌐 **Web管理界面** - 直观的Token管理界面，支持用户信息查看
 - 🏗️ **模块化架构** - 清晰的代码结构，易于扩展
 - 📈 **性能优化** - 流式响应去重，减少带宽消耗
+- 🎯 **多模型支持** - 支持通义千问、DeepSeek、Kimi、GLM等多种模型
 
 ## 🚀 快速开始
 
@@ -42,7 +44,7 @@ docker run -d \
   -p 8000:8000 \
   -e API_PASSWORD=your_secure_password \
   -v $(pwd)/data:/app/data \
-  ghcr.io/water008/qwenapi:latest
+  ghcr.io/coulsontl/qwenapi:iflow
 ```
 
 ### 方式三：手动安装
@@ -79,11 +81,19 @@ API_PASSWORD=qwen123        # 访问密码（务必修改）
 DATABASE_URL=data/tokens.db # 数据库路径
 DEBUG=false                 # 调试模式
 
-# Qwen API配置
-QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
-QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
-QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
-QWEN_OAUTH_SCOPE=openid profile email model.completion
+# iFlow API配置
+API_ENDPOINT=https://apis.iflow.cn/v1/chat/completions
+
+# OAuth2配置
+OAUTH_CLIENT_ID=your_client_id           # OAuth客户端ID（必填）
+OAUTH_CLIENT_SECRET=your_client_secret   # OAuth客户端密钥（可选）
+OAUTH_VERIFICATION_URI=https://iflow.cn/oauth
+OAUTH2_TOKEN_ENDPOINT=https://iflow.cn/oauth/token
+OAUTH2_AUTHORIZATION_HEADER=your_auth_header  # 可选
+OAUTH2_CALLBACK_URL=http://localhost:8000/oauth2callback
+
+# 用户信息配置
+USER_INFO_ENDPOINT=https://iflow.cn/api/oauth/getUserInfo
 
 # Token刷新时间阈值（秒，默认2小时=7200秒）
 # 当Token剩余有效期大于此值时，将跳过刷新
@@ -98,15 +108,23 @@ TOKEN_REFRESH_THRESHOLD_SECONDS=7200
 
 ### 2. 获取Token
 
-**方式A：OAuth授权（推荐）**
+**方式A：OAuth2授权码流程（推荐）**
 1. 点击"OAuth登录获取Token"
-2. 扫描二维码或访问链接完成授权
-3. 系统自动保存Token
+2. 系统生成授权链接
+3. 在浏览器中完成授权
+4. 系统自动获取Token和用户信息
 
 **方式B：手动上传**
 1. 准备oauth_creds.json文件
 2. 在Web界面上传文件
 3. 系统自动解析并保存
+
+**方式C：API获取Token**
+```bash
+# 获取Token和API Key
+curl -X GET "http://localhost:8000/v1/iflow/token" \
+  -H "Authorization: Bearer yourpassword"
+```
 
 ### 3. 测试API
 
@@ -122,7 +140,7 @@ client = openai.OpenAI(
 
 # 聊天对话
 response = client.chat.completions.create(
-    model="qwen3-coder-plus",
+    model="qwen3-coder",
     messages=[
         {"role": "user", "content": "请写一个Python快速排序算法"}
     ]
@@ -131,7 +149,7 @@ print(response.choices[0].message.content)
 
 # 流式输出
 response = client.chat.completions.create(
-    model="qwen3-coder-plus",
+    model="qwen3-coder",
     messages=[{"role": "user", "content": "讲个笑话"}],
     stream=True
 )
@@ -153,7 +171,7 @@ curl -X POST http://localhost:8000/api/chat \
   -H "Authorization: Bearer yourpassword" \
   -d '{
     "messages": [{"role": "user", "content": "你好"}],
-    "model": "qwen3-coder-plus"
+    "model": "qwen3-coder"
   }'
 
 # 流式聊天
@@ -162,7 +180,7 @@ curl -X POST http://localhost:8000/api/chat \
   -H "Authorization: Bearer yourpassword" \
   -d '{
     "messages": [{"role": "user", "content": "你好"}],
-    "model": "qwen3-coder-plus",
+    "model": "qwen3-coder",
     "stream": true
   }'
 ```
@@ -175,6 +193,15 @@ curl -X POST http://localhost:8000/api/chat \
 |---|---|---|
 | `/v1/chat/completions` | POST | 聊天完成 |
 | `/v1/models` | GET | 获取模型列表 |
+| `/v1/iflow/token` | GET | 获取Token和API Key |
+
+### OAuth2接口
+
+| 端点 | 方法 | 描述 |
+|---|---|---|
+| `/oauth-init` | POST | 初始化OAuth2授权 |
+| `/oauth2callback` | GET | OAuth2回调处理 |
+| `/poll-oauth-status` | GET | 轮询OAuth状态 |
 
 ### 原生API接口
 
@@ -188,6 +215,14 @@ curl -X POST http://localhost:8000/api/chat \
 | `/api/health` | GET | 健康检查 |
 | `/api/metrics` | GET | 性能指标 |
 
+### 支持的模型
+
+- **通义千问系列**：qwen3-coder, qwen3-max-preview, qwen3-32b, qwen3-235b等
+- **DeepSeek系列**：deepseek-v3.1, deepseek-r1, deepseek-v3
+- **Kimi系列**：kimi-k2-0905, kimi-k2
+- **GLM系列**：glm-4.5
+- **TStars系列**：tstars2.0
+
 ## 🐳 Docker使用
 
 ### 使用预构建镜像（推荐）
@@ -198,8 +233,9 @@ docker run -d \
   --name qwen-api \
   -p 8000:8000 \
   -e API_PASSWORD=your_secure_password \
+  -e OAUTH_CLIENT_ID=your_client_id \
   -v $(pwd)/data:/app/data \
-  ghcr.io/water008/qwenapi:latest
+  ghcr.io/water008/qwenapi:iflow
 
 # 使用Docker Compose
 docker-compose up -d

@@ -1,5 +1,5 @@
 """
-Utility functions for Qwen Code API Server
+Utility functions for iFlow-Cli API Server
 """
 import secrets
 import base64

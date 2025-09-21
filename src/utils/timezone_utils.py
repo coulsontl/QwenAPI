@@ -1,5 +1,5 @@
 """
-Timezone utilities for Qwen Code API Server
+Timezone utilities for iFlow-Cli API Server
 """
 import os
 from datetime import datetime, date, timezone, timedelta

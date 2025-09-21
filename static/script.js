@@ -583,6 +583,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 refreshSingleToken(tokenId);
             }
+        } else if (target.classList.contains('btn-user-info')) {
+            const tokenId = decodeURIComponent(target.getAttribute('data-token-id') || '');
+            if (tokenId) {
+                e.preventDefault();
+                showUserInfo(tokenId);
+            }
         } else if (target.classList.contains('btn-delete')) {
             const tokenId = decodeURIComponent(target.getAttribute('data-token-id') || '');
             if (tokenId) {
@@ -599,6 +605,74 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // 显示用户信息弹窗
+    function showUserInfo(tokenId) {
+        // 从当前token列表中查找对应的token
+        const tokenCards = document.querySelectorAll('.token-card');
+        let targetToken = null;
+        
+        for (let card of tokenCards) {
+            if (card.getAttribute('data-token-id') === encodeURIComponent(tokenId)) {
+                // 从token数据中获取userInfo
+                const tokenData = window.currentTokenData;
+                if (tokenData && tokenData.tokens) {
+                    targetToken = tokenData.tokens.find(t => t.id === tokenId);
+                }
+                break;
+            }
+        }
+        
+        if (!targetToken || !targetToken.userInfo) {
+            showStatus('未找到用户信息', 'error');
+            return;
+        }
+        
+        // 创建弹窗
+        const modal = document.createElement('div');
+        modal.className = 'user-info-modal show';
+        modal.innerHTML = `
+            <div class="user-info-content">
+                <div class="user-info-header">
+                    <h3 class="user-info-title">👤 用户信息</h3>
+                    <button class="user-info-close">&times;</button>
+                </div>
+                <div class="user-info-body">
+                    ${generateUserInfoHTML(targetToken.userInfo)}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // 绑定关闭事件
+        const closeBtn = modal.querySelector('.user-info-close');
+        closeBtn.onclick = function() {
+            document.body.removeChild(modal);
+        };
+        
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        };
+    }
+    
+    // 生成用户信息HTML
+    function generateUserInfoHTML(userInfo) {
+        let html = '';
+        for (const [key, value] of Object.entries(userInfo)) {
+            if (value !== null && value !== undefined) {
+                html += `
+                    <div class="user-info-item">
+                        <span class="user-info-label">${key}:</span>
+                        <div class="user-info-value">${typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</div>
+                    </div>
+                `;
+            }
+        }
+        return html;
+    }
+    
     async function checkTokenStatus() {
         if (!tokenStatus || !refreshTokenBtn) return;
         
@@ -610,6 +684,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const data = await response.json();
             
+            // 保存token数据到全局变量，供showUserInfo使用
+            window.currentTokenData = data;
+            
             if (response.ok && data.hasToken) {
                 let tokenListHtml = '';
                 if (data.tokens && data.tokens.length > 0) {
@@ -620,9 +697,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         const status = token.isExpired ? '已过期' : '有效';
                         const statusClass = token.isExpired ? 'status-expired' : 'status-valid';
                         const refreshInfo = token.wasRefreshed ? ' (已自动刷新)' : (token.refreshFailed ? ' (刷新失败)' : '');
+                        // 优先显示userName，如果没有则显示token.id
+                        const displayTitle = (token.userInfo && token.userInfo.userName) ? 
+                            '👤 ' + token.userInfo.userName : 
+                            '🔑 ' + token.id;
                         tokenListHtml += '<div class="token-card" data-token-id="' + encodeURIComponent(token.id) + '">';
                         tokenListHtml += '<div class="token-header">';
-                        tokenListHtml += '<div class="token-id">🔑 ' + token.id + '</div>';
+                        tokenListHtml += '<div class="token-id">' + displayTitle + '</div>';
                         tokenListHtml += '<div class="token-header-badges">';
                         tokenListHtml += `<div class="token-status status-usage">使用: ${token.usageCount.toLocaleString()}</div>`;
                         tokenListHtml += '<div class="token-status ' + statusClass + '">' + status + '</div>';
@@ -637,6 +718,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         tokenListHtml += '</div>';
                         tokenListHtml += '<div class="token-actions">';
                         tokenListHtml += '<button class="btn-refresh" data-token-id="' + encodeURIComponent(token.id) + '">刷新</button>';
+                        if (token.userInfo) {
+                            tokenListHtml += '<button class="btn-user-info" data-token-id="' + encodeURIComponent(token.id) + '">用户信息</button>';
+                        }
                         tokenListHtml += '<button class="btn-delete" data-token-id="' + encodeURIComponent(token.id) + '">删除</button>';
                         tokenListHtml += '</div>';
                         tokenListHtml += '</div>';

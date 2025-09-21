@@ -2,10 +2,10 @@ name: CI & Release
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "iflow" ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ "iflow" ]
 
 env:
   REGISTRY: ghcr.io
@@ -34,7 +34,7 @@ jobs:
 
   build-and-push:
     needs: ci
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/iflow'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -60,9 +60,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            type=raw,value=iflow
+            type=raw,value=iflow-{{sha}}
             type=semver,pattern=v{{version}}
             type=semver,pattern=v{{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5

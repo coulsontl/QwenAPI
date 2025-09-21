@@ -33,13 +33,79 @@ async def get_models(request: Request):
         "object": "list",
         "data": [
             {
-                "id": "qwen3-coder-plus",
+                "id": "tstars2.0",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "tstars"
+            },
+            {
+                "id": "qwen3-coder",
                 "object": "model",
                 "created": int(time.time()),
                 "owned_by": "qwen"
             },
             {
-                "id": "qwen3-coder-flash",
+                "id": "qwen3-max-preview",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "qwen"
+            },
+            {
+                "id": "kimi-k2-0905",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "kimi"
+            },
+            {
+                "id": "glm-4.5",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "glm"
+            },
+            {
+                "id": "kimi-k2",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "kimi"
+            },
+            {
+                "id": "deepseek-v3.1",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "deepseek"
+            },
+            {
+                "id": "deepseek-r1",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "deepseek"
+            },
+            {
+                "id": "deepseek-v3",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "deepseek"
+            },
+            {
+                "id": "qwen3-32b",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "qwen"
+            },
+            {
+                "id": "qwen3-235b-a22b-thinking-2507",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "qwen"
+            },
+            {
+                "id": "qwen3-235b-a22b-instruct",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "qwen"
+            },
+            {
+                "id": "qwen3-235b",
                 "object": "model",
                 "created": int(time.time()),
                 "owned_by": "qwen"
@@ -68,7 +134,7 @@ async def chat_completions(request: Request):
     return await handle_chat(data)
 
 
-@router.get("/v1/qwen/access-token")
+@router.get("/v1/iflow/token")
 async def get_access_token(request: Request):
     """
     获取一个有效的access token并增加其使用次数，同时返回User-Agent
@@ -101,6 +167,7 @@ async def get_access_token(request: Request):
     # 返回token信息和User-Agent
     return JSONResponse({
         "access_token": token_data.access_token,
+        "api_key": token_data.api_key,
         "token_id": token_id,
         "user_agent": user_agent
     })

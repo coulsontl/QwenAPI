@@ -1,20 +1,22 @@
-# Qwen API Server
+# iFlow-Cli API Server
 
-🚀 **Qwen Code API Server** - FastAPI-based Qwen model API server, fully compatible with OpenAI API format
+🚀 **iFlow-Cli API Server** - FastAPI-based Qwen model API server, fully compatible with OpenAI API format
 
 [中文版本](README.md) | English Version
 
 ## ✨ Features
 
 - 🔐 **Password Protected Access** - Environment variable configurable access control
-- 🔑 **OAuth Device Code Authorization** - One-click token acquisition and refresh
-- 💬 **OpenAI Compatible API** - 100% compatible with OpenAI clients
-- 🔄 **Automatic Token Management** - Intelligent token refresh and status monitoring
-- 📊 **Real-time Usage Statistics** - API call statistics by date
-- 🐳 **Dockerized Deployment** - Support for Docker and Docker Compose
-- 🌐 **Web Management Interface** - Intuitive token management interface
+- 🔑 **OAuth2 Authorization Code Flow** - Complete OAuth2 authorization code flow support
+- 👤 **User Information Management** - Automatic user info retrieval and storage with username display
+- 💬 **OpenAI Compatible API** - 100% compatible with OpenAI clients, supports multiple models
+- 🔄 **Smart Token Management** - Automatic token refresh and status monitoring, prioritizes API Key usage
+- 📊 **Real-time Usage Statistics** - API call statistics and usage tracking by date
+- 🐳 **Dockerized Deployment** - Support for Docker and Docker Compose with auto build and release
+- 🌐 **Web Management Interface** - Intuitive token management interface with user info viewing
 - 🏗️ **Modular Architecture** - Clear code structure, easy to extend
 - 📈 **Performance Optimization** - Streaming response deduplication, reduced bandwidth usage
+- 🎯 **Multi-Model Support** - Supports Qwen, DeepSeek, Kimi, GLM and other models
 
 ## 🚀 Quick Start
 
@@ -41,8 +43,9 @@ docker run -d \
   --name qwen-api \
   -p 8000:8000 \
   -e API_PASSWORD=your_secure_password \
+  -e OAUTH_CLIENT_ID=your_client_id \
   -v $(pwd)/data:/app/data \
-  ghcr.io/water008/qwenapi:latest
+  ghcr.io/coulsontl/qwenapi:iflow
 ```
 
 ### Method 3: Manual Installation
@@ -79,11 +82,19 @@ API_PASSWORD=qwen123        # Access password (must change)
 DATABASE_URL=data/tokens.db # Database path
 DEBUG=false                 # Debug mode
 
-# Qwen API Configuration
-QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
-QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
-QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
-QWEN_OAUTH_SCOPE=openid profile email model.completion
+# iFlow API Configuration
+API_ENDPOINT=https://apis.iflow.cn/v1/chat/completions
+
+# OAuth2 Configuration
+OAUTH_CLIENT_ID=your_client_id           # OAuth client ID (required)
+OAUTH_CLIENT_SECRET=your_client_secret   # OAuth client secret (optional)
+OAUTH_VERIFICATION_URI=https://iflow.cn/oauth
+OAUTH2_TOKEN_ENDPOINT=https://iflow.cn/oauth/token
+OAUTH2_AUTHORIZATION_HEADER=your_auth_header  # Optional
+OAUTH2_CALLBACK_URL=http://localhost:8000/oauth2callback
+
+# User Info Configuration
+USER_INFO_ENDPOINT=https://iflow.cn/api/oauth/getUserInfo
 
 # Token refresh threshold (seconds, default 2 hours = 7200 seconds)
 # When the remaining validity period of the token is greater than this value, the refresh will be skipped
@@ -98,15 +109,23 @@ Visit http://localhost:8000 and enter your configured password to login.
 
 ### 2. Get Token
 
-**Method A: OAuth Authorization (Recommended)**
+**Method A: OAuth2 Authorization Code Flow (Recommended)**
 1. Click "OAuth Login to Get Token"
-2. Scan QR code or visit link to complete authorization
-3. System automatically saves token
+2. System generates authorization link
+3. Complete authorization in browser
+4. System automatically gets token and user info
 
 **Method B: Manual Upload**
 1. Prepare oauth_creds.json file
 2. Upload file in web interface
 3. System automatically parses and saves
+
+**Method C: API Get Token**
+```bash
+# Get token and API key
+curl -X GET "http://localhost:8000/v1/iflow/token" \
+  -H "Authorization: Bearer yourpassword"
+```
 
 ### 3. Test API
 
@@ -122,7 +141,7 @@ client = openai.OpenAI(
 
 # Chat conversation
 response = client.chat.completions.create(
-    model="qwen3-coder-plus",
+    model="qwen3-coder",
     messages=[
         {"role": "user", "content": "Please write a Python quicksort algorithm"}
     ]
@@ -131,7 +150,7 @@ print(response.choices[0].message.content)
 
 # Streaming output
 response = client.chat.completions.create(
-    model="qwen3-coder-plus",
+    model="qwen3-coder",
     messages=[{"role": "user", "content": "Tell me a joke"}],
     stream=True
 )
@@ -153,7 +172,7 @@ curl -X POST http://localhost:8000/api/chat \
   -H "Authorization: Bearer yourpassword" \
   -d '{
     "messages": [{"role": "user", "content": "Hello"}],
-    "model": "qwen3-coder-plus"
+    "model": "qwen3-coder"
   }'
 
 # Streaming chat
@@ -162,7 +181,7 @@ curl -X POST http://localhost:8000/api/chat \
   -H "Authorization: Bearer yourpassword" \
   -d '{
     "messages": [{"role": "user", "content": "Hello"}],
-    "model": "qwen3-coder-plus",
+    "model": "qwen3-coder",
     "stream": true
   }'
 ```
@@ -175,6 +194,15 @@ curl -X POST http://localhost:8000/api/chat \
 |---|---|---|
 | `/v1/chat/completions` | POST | Chat completions |
 | `/v1/models` | GET | Get available models |
+| `/v1/iflow/token` | GET | Get token and API key |
+
+### OAuth2 Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/oauth-init` | POST | Initialize OAuth2 authorization |
+| `/oauth2callback` | GET | OAuth2 callback handling |
+| `/poll-oauth-status` | GET | Poll OAuth status |
 
 ### Native API Endpoints
 
@@ -188,6 +216,14 @@ curl -X POST http://localhost:8000/api/chat \
 | `/api/health` | GET | Health check |
 | `/api/metrics` | GET | Performance metrics |
 
+### Supported Models
+
+- **Qwen Series**: qwen3-coder, qwen3-max-preview, qwen3-32b, qwen3-235b, etc.
+- **DeepSeek Series**: deepseek-v3.1, deepseek-r1, deepseek-v3
+- **Kimi Series**: kimi-k2-0905, kimi-k2
+- **GLM Series**: glm-4.5
+- **TStars Series**: tstars2.0
+
 ## 🐳 Docker Usage
 
 ### Using Pre-built Image (Recommended)
@@ -198,8 +234,9 @@ docker run -d \
   --name qwen-api \
   -p 8000:8000 \
   -e API_PASSWORD=your_secure_password \
+  -e OAUTH_CLIENT_ID=your_client_id \
   -v $(pwd)/data:/app/data \
-  ghcr.io/water008/qwenapi:latest
+  ghcr.io/water008/qwenapi:iflow
 
 # Using Docker Compose
 docker-compose up -d

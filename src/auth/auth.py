@@ -1,5 +1,5 @@
 """
-Authentication and authorization for Qwen Code API Server
+Authentication and authorization for iFlow-Cli API Server
 """
 from fastapi import HTTPException, Request, status, Depends
 from typing import Optional

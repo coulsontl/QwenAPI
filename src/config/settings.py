@@ -1,5 +1,5 @@
 """
-Configuration constants and settings for Qwen Code API Server
+Configuration constants and settings for iFlow-Cli API Server
 """
 import os
 from datetime import datetime, timezone, timedelta
@@ -29,17 +29,25 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info")
 
 # OAuth2 Configuration
-QWEN_OAUTH_BASE_URL = os.getenv("QWEN_OAUTH_BASE_URL", "https://chat.qwen.ai")
-QWEN_OAUTH_DEVICE_CODE_ENDPOINT = f"{QWEN_OAUTH_BASE_URL}/api/v1/oauth2/device/code"
-QWEN_OAUTH_TOKEN_ENDPOINT = f"{QWEN_OAUTH_BASE_URL}/api/v1/oauth2/token"
+OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
+OAUTH_CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET")
+OAUTH_GRANT_TYPE = "authorization_code"
+OAUTH_VERIFICATION_URI = os.getenv("OAUTH_VERIFICATION_URI", "https://iflow.cn/oauth")
 
-# OAuth Client Configuration
-QWEN_OAUTH_CLIENT_ID = os.getenv("QWEN_OAUTH_CLIENT_ID", "f0304373b74a44d2b584a3fb70ca9e56")
-QWEN_OAUTH_SCOPE = os.getenv("QWEN_OAUTH_SCOPE", "openid profile email model.completion")
-QWEN_OAUTH_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
+# OAuth2 Callback Configuration
+OAUTH2_CALLBACK_PORT = os.getenv("OAUTH2_CALLBACK_PORT", PORT)
+OAUTH2_CALLBACK_HOST = os.getenv("OAUTH2_CALLBACK_HOST", "localhost")
+OAUTH2_CALLBACK_URL = f"http://{OAUTH2_CALLBACK_HOST}:{OAUTH2_CALLBACK_PORT}/oauth2callback"
+
+# OAuth2 Token Exchange Configuration
+OAUTH2_TOKEN_ENDPOINT = os.getenv("OAUTH2_TOKEN_ENDPOINT", "https://iflow.cn/oauth/token")
+OAUTH2_AUTHORIZATION_HEADER = os.getenv("OAUTH2_AUTHORIZATION_HEADER")
+
+# User Info Configuration
+USER_INFO_ENDPOINT = os.getenv("USER_INFO_ENDPOINT", "https://iflow.cn/api/oauth/getUserInfo")
 
 # API Configuration
-QWEN_API_ENDPOINT = os.getenv("QWEN_API_ENDPOINT", "https://portal.qwen.ai/v1/chat/completions")
+API_ENDPOINT = os.getenv("API_ENDPOINT", "https://apis.iflow.cn/v1/chat/completions")
 
 # Database Configuration
 DATABASE_TABLE_NAME = "tokens"

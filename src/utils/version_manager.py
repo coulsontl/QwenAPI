@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 class VersionManager:
     
-    REGISTRY_URL = "https://registry.npmmirror.com/@qwen-code/qwen-code/latest"
-    DEFAULT_VERSION = "0.0.10"
+    REGISTRY_URL = "https://registry.npmmirror.com/@iflow-ai/iflow-cli/latest"
+    DEFAULT_VERSION = "0.2.26"
     CACHE_TTL = 3600
     REQUEST_TIMEOUT = 5
     MAX_RETRIES = 2
@@ -80,7 +80,7 @@ class VersionManager:
                 self.get_version(), 
                 timeout=2
             )
-            return f"QwenCode/{version} (linux; x64)"
+            return 'iFlow-Cli'
         except asyncio.TimeoutError:
             return self.get_user_agent()
         except Exception as e:

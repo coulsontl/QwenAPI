@@ -1,5 +1,5 @@
 """
-Data models for Qwen Code API Server
+Data models for iFlow-Cli API Server
 """
 import time
 from dataclasses import dataclass, field
@@ -14,6 +14,8 @@ class TokenData:
     expires_at: Optional[int] = field(default_factory=lambda: int(time.time() * 1000) + 3600 * 1000)
     uploaded_at: Optional[int] = field(default_factory=lambda: int(time.time() * 1000))
     usage_count: int = 0
+    user_info: Optional[Dict[str, Any]] = None  # 用户信息JSON
+    api_key: Optional[str] = None  # API密钥，单独存储便于索引
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -21,7 +23,9 @@ class TokenData:
             'refresh_token': self.refresh_token,
             'expires_at': self.expires_at,
             'uploaded_at': self.uploaded_at,
-            'usage_count': self.usage_count
+            'usage_count': self.usage_count,
+            'user_info': self.user_info,
+            'api_key': self.api_key
         }
     
     @classmethod
@@ -31,19 +35,20 @@ class TokenData:
             refresh_token=data['refresh_token'],
             expires_at=data.get('expires_at'),
             uploaded_at=data.get('uploaded_at'),
-            usage_count=data.get('usage_count', 0)
+            usage_count=data.get('usage_count', 0),
+            user_info=data.get('user_info'),
+            api_key=data.get('api_key')
         )
 
 
 @dataclass
 class OAuthState:
-    device_code: str
-    user_code: str
     verification_uri: str
     verification_uri_complete: str
     code_verifier: str
     expires_at: int
     poll_interval: int = 2
+    code: Optional[str] = None  # 存储授权码
 
 
 @dataclass

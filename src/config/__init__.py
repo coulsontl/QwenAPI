@@ -1,4 +1,4 @@
 """
-Configuration module for Qwen Code API Server
+Configuration module for iFlow-Cli API Server
 """
 from .settings import *

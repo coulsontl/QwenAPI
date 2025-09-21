@@ -1,5 +1,5 @@
 """
-Web interface module for Qwen Code API Server
+Web interface module for iFlow-Cli API Server
 """
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse

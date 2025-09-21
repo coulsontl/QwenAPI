@@ -17,7 +17,7 @@ from ..utils import get_token_id
 from ..utils.timezone_utils import get_local_today_iso
 from ..utils.tool_registry import get_tool_registry
 from ..utils.tool_executor import ToolCallExecutor
-from ..config import API_PASSWORD, QWEN_API_ENDPOINT
+from ..config import API_PASSWORD, API_ENDPOINT
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +221,7 @@ async def api_oauth_cancel(request: Request, auth: bool = Depends(check_auth)):
     logger.info("收到取消 OAuth 请求，stateId: %s", state_id)
     return JSONResponse(oauth_manager.cancel_oauth(state_id))
 
+
 @router.post("/chat")
 async def api_chat(request: Request, auth: bool = Depends(check_auth)):
     logger.debug("收到聊天请求，路径: %s", request.url.path)
@@ -319,7 +320,7 @@ async def _make_api_request_with_retry(session, url, json_data, headers, max_ret
 
 async def handle_chat(data: Dict[str, Any], max_tool_calls: int = 10):
     messages = data.get('messages', [])
-    model = data.get('model', 'qwen3-coder-plus')
+    model = data.get('model', 'qwen3-coder')
     stream = data.get('stream', False)
     tools = data.get('tools', [])
     tool_choice = data.get('tool_choice', 'auto')
@@ -351,8 +352,10 @@ async def handle_chat(data: Dict[str, Any], max_tool_calls: int = 10):
     token_id, current_token = valid_token
     session = await get_session()
     
+    # 优先使用apiKey，如果没有则使用access_token
+    auth_token = current_token.api_key if current_token.api_key else current_token.access_token
     headers = {
-        'Authorization': f'Bearer {current_token.access_token}',
+        'Authorization': f'Bearer {auth_token}',
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream' if stream else 'application/json'
     }
@@ -381,7 +384,7 @@ async def handle_chat(data: Dict[str, Any], max_tool_calls: int = 10):
     
     while tool_call_count < max_tool_calls:
         try:
-            response = await _make_api_request_with_retry(session, QWEN_API_ENDPOINT, body, headers)
+            response = await _make_api_request_with_retry(session, API_ENDPOINT, body, headers)
             if response.status != 200:
                 logger.error("上游 API 返回非 200 状态码: %s", response.status)
                 raise HTTPException(500, f'API error: {response.status}')

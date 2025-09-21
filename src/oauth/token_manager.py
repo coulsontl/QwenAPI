@@ -1,5 +1,5 @@
 """
-Token management for Qwen Code API Server
+Token management for iFlow-Cli API Server
 """
 import time
 import random
@@ -11,7 +11,7 @@ from ..models import TokenData
 from ..database import TokenDatabase
 from ..utils import get_token_id
 from ..utils.timezone_utils import timestamp_to_local_datetime, format_local_datetime
-from ..config import QWEN_OAUTH_TOKEN_ENDPOINT, QWEN_OAUTH_CLIENT_ID
+from ..config import OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH2_TOKEN_ENDPOINT, OAUTH2_AUTHORIZATION_HEADER, USER_INFO_ENDPOINT
 
 logger = logging.getLogger(__name__)
 
@@ -53,27 +53,22 @@ class TokenManager:
             expires_at_str = format_local_datetime(timestamp_to_local_datetime(token.expires_at)) if token.expires_at else "未知"
             uploaded_at_str = format_local_datetime(timestamp_to_local_datetime(token.uploaded_at)) if token.uploaded_at else "未知"
             
+            token_data = {
+                'id': token_id,
+                'expiresAt': token.expires_at,
+                'expiresAtDisplay': expires_at_str,
+                'isExpired': is_expired,
+                'uploadedAt': token.uploaded_at,
+                'uploadedAtDisplay': uploaded_at_str,
+                'usageCount': token.usage_count,
+                'userInfo': token.user_info,
+                'apiKey': token.api_key
+            }
+            
             if is_expired:
-                token_list.append({
-                    'id': token_id,
-                    'expiresAt': token.expires_at,
-                    'expiresAtDisplay': expires_at_str,
-                    'isExpired': True,
-                    'uploadedAt': token.uploaded_at,
-                    'uploadedAtDisplay': uploaded_at_str,
-                    'usageCount': token.usage_count,
-                    'refreshFailed': True
-                })
-            else:
-                token_list.append({
-                    'id': token_id,
-                    'expiresAt': token.expires_at,
-                    'expiresAtDisplay': expires_at_str,
-                    'isExpired': False,
-                    'uploadedAt': token.uploaded_at,
-                    'uploadedAtDisplay': uploaded_at_str,
-                    'usageCount': token.usage_count
-                })
+                token_data['refreshFailed'] = True
+                
+            token_list.append(token_data)
         
         return {
             'hasToken': len(self.token_store) > 0,
@@ -108,29 +103,57 @@ class TokenManager:
     async def _force_refresh_token(self, token_id: str, token: TokenData) -> Tuple[Optional[TokenData], bool, Optional[str]]:
         """刷新 token，返回 (刷新后的 token, 是否应删除, 错误信息)"""
         try:
-            headers = {}
+            headers = {
+                'User-Agent': 'node',
+                'Accept-Encoding': 'br, gzip, deflate',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'accept-language': '*',
+                'sec-fetch-mode': 'cors'
+            }
+            
+            # 只有当 OAUTH2_AUTHORIZATION_HEADER 存在时才添加
+            if OAUTH2_AUTHORIZATION_HEADER:
+                headers['Authorization'] = OAUTH2_AUTHORIZATION_HEADER
+            
             if self._version_manager:
-                headers['User-Agent'] = await self._version_manager.get_user_agent_async()
+                try:
+                    headers['User-Agent'] = await self._version_manager.get_user_agent_async()
+                except Exception:
+                    headers['User-Agent'] = self._version_manager.get_user_agent()
             
             async with aiohttp.ClientSession() as session:
                 data = aiohttp.FormData()
                 data.add_field('grant_type', 'refresh_token')
                 data.add_field('refresh_token', token.refresh_token)
-                data.add_field('client_id', QWEN_OAUTH_CLIENT_ID)
+                data.add_field('client_id', OAUTH_CLIENT_ID)
                 
-                async with session.post(QWEN_OAUTH_TOKEN_ENDPOINT, data=data, headers=headers) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        logger.warning("刷新 token 请求失败，状态码: %s，ID: %s", response.status, token_id)
-                        should_remove = response.status in (400, 401, 403)
-                        return None, should_remove, error_text or f"HTTP {response.status}"
-                    
+                # 只有当 OAUTH_CLIENT_SECRET 存在时才添加
+                if OAUTH_CLIENT_SECRET:
+                    data.add_field('client_secret', OAUTH_CLIENT_SECRET)
+                
+                async with session.post(
+                    OAUTH2_TOKEN_ENDPOINT, 
+                    data=data, 
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
                     try:
                         result = await response.json()
                     except Exception as json_error:
                         logger.error("解析刷新 token 响应失败，ID: %s，错误: %s", token_id, json_error)
                         return None, False, f"解析响应失败: {json_error}"
                     
+                    # 检查响应中的 success 字段
+                    if not result.get('success', True):
+                        error_code = str(result.get('code', '200'))
+                        error_message = result.get('message', '未知错误')
+                        logger.warning("刷新 token 返回错误，ID: %s，错误码: %s，消息: %s", token_id, error_code, error_message)
+                        
+                        # 根据错误码判断是否应该删除token
+                        should_remove = error_code in {'400', '401', '403', '500'}
+                        return None, should_remove, f"{error_code}: {error_message}"
+                    
+                    # 检查是否有 error 字段（兼容旧的错误格式）
                     if 'error' in result:
                         error_code = str(result.get('error'))
                         logger.warning("刷新 token 返回错误，ID: %s，错误: %s", token_id, error_code)
@@ -144,8 +167,17 @@ class TokenManager:
                         refresh_token=result.get('refresh_token', token.refresh_token),
                         expires_at=int(time.time() * 1000) + result.get('expires_in', 3600) * 1000,
                         uploaded_at=token.uploaded_at,
-                        usage_count=token.usage_count
+                        usage_count=token.usage_count,
+                        user_info=token.user_info,  # 保持原有用户信息
+                        api_key=token.api_key  # 保持原有API密钥
                     )
+                    
+                    # 获取用户信息
+                    user_info = await self._get_user_info(result['access_token'])
+                    if user_info:
+                        updated_token.user_info = user_info
+                        updated_token.api_key = user_info.get('apiKey')
+                        logger.debug("刷新 token 时成功获取用户信息，用户ID: %s", user_info.get('userId'))
                     
                     self.save_token(token_id, updated_token)
                     
@@ -228,3 +260,47 @@ class TokenManager:
             return random.choice(valid_tokens)
         
         return None
+    
+    async def _get_user_info(self, access_token: str) -> Optional[Dict[str, Any]]:
+        """获取用户信息"""
+        try:
+            headers = {
+                'User-Agent': 'node',
+                'Accept-Encoding': 'br, gzip, deflate',
+                'accept-language': '*',
+                'sec-fetch-mode': 'cors'
+            }
+            
+            if self._version_manager:
+                try:
+                    headers['User-Agent'] = await self._version_manager.get_user_agent_async()
+                except Exception:
+                    headers['User-Agent'] = self._version_manager.get_user_agent()
+            
+            async with aiohttp.ClientSession() as session:
+                url = f"{USER_INFO_ENDPOINT}?accessToken={access_token}"
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    try:
+                        result = await response.json()
+                    except Exception as json_error:
+                        logger.error("解析用户信息响应失败，错误: %s", json_error)
+                        return None
+                    
+                    # 检查响应中的 success 字段
+                    if not result.get('success', True):
+                        error_code = str(result.get('code', 'unknown'))
+                        error_message = result.get('message', '未知错误')
+                        logger.warning("获取用户信息失败，错误码: %s，消息: %s", error_code, error_message)
+                        return None
+                    
+                    user_data = result.get('data')
+                    if user_data:
+                        logger.debug("成功获取用户信息，用户ID: %s", user_data.get('userId'))
+                        return user_data
+                    else:
+                        logger.warning("用户信息响应中没有 data 字段")
+                        return None
+                        
+        except Exception as error:
+            logger.exception("获取用户信息过程中出现异常: %s", error)
+            return None

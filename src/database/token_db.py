@@ -1,5 +1,5 @@
 """
-Database management for Qwen Code API Server
+Database management for iFlow-Cli API Server
 """
 import sqlite3
 import time
@@ -30,6 +30,8 @@ class TokenDatabase:
     def _migrate_db(self):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
+            
+            # 检查并添加 call_count 列
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='token_usage_stats'")
             if cursor.fetchone():
                 cursor.execute("PRAGMA table_info(token_usage_stats)")
@@ -37,6 +39,7 @@ class TokenDatabase:
                 if 'call_count' not in columns:
                     cursor.execute("ALTER TABLE token_usage_stats ADD COLUMN call_count INTEGER DEFAULT 0")
             
+            # 创建 app_versions 表
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='app_versions'")
             if not cursor.fetchone():
                 cursor.execute('''
@@ -59,9 +62,14 @@ class TokenDatabase:
                     refresh_token TEXT NOT NULL,
                     expires_at INTEGER,
                     uploaded_at INTEGER,
-                    usage_count INTEGER NOT NULL DEFAULT 0
+                    usage_count INTEGER NOT NULL DEFAULT 0,
+                    user_info JSON,
+                    api_key TEXT
                 )
             ''')
+            # 创建索引
+            cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_api_key ON {DATABASE_TABLE_NAME}(api_key)")
+            cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_usage_count ON {DATABASE_TABLE_NAME}(usage_count)")
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS token_usage_stats (
                     date TEXT,
@@ -98,19 +106,23 @@ class TokenDatabase:
         self._cache.clear()
 
     def save_token(self, token_id: str, token_data: TokenData) -> None:
+        import json
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f'''
                 INSERT OR REPLACE INTO {DATABASE_TABLE_NAME} 
-                (id, access_token, refresh_token, expires_at, uploaded_at, usage_count)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (id, access_token, refresh_token, expires_at, uploaded_at, usage_count, user_info, api_key)
+                VALUES (?, ?, ?, ?, ?, ?, json(?), ?)
             ''', (token_id, token_data.access_token, token_data.refresh_token, 
-                  token_data.expires_at, token_data.uploaded_at, token_data.usage_count))
+                  token_data.expires_at, token_data.uploaded_at, token_data.usage_count,
+                  json.dumps(token_data.user_info) if token_data.user_info else None,
+                  token_data.api_key))
             conn.commit()
         self._invalidate_cache()
         logger.debug("已保存 token 到数据库，ID: %s", token_id)
 
     def load_all_tokens(self) -> Dict[str, TokenData]:
+        import json
         cache_key = self._get_cache_key("load_all_tokens")
         cached = self._get_cached_result(cache_key)
         if cached:
@@ -121,13 +133,31 @@ class TokenDatabase:
             cursor = conn.cursor()
             cursor.execute(f'SELECT * FROM {DATABASE_TABLE_NAME}')
             for row in cursor.fetchall():
-                token_id, access_token, refresh_token, expires_at, uploaded_at, usage_count = row
+                if len(row) >= 8:  # 新格式，包含 user_info 和 api_key
+                    token_id, access_token, refresh_token, expires_at, uploaded_at, usage_count, user_info, api_key = row
+                    # 处理JSON类型，如果已经是字典则直接使用，否则解析JSON
+                    if isinstance(user_info, dict):
+                        user_info_dict = user_info
+                    elif user_info:
+                        try:
+                            user_info_dict = json.loads(user_info)
+                        except (json.JSONDecodeError, TypeError):
+                            user_info_dict = None
+                    else:
+                        user_info_dict = None
+                else:  # 旧格式，兼容性处理
+                    token_id, access_token, refresh_token, expires_at, uploaded_at, usage_count = row
+                    user_info_dict = None
+                    api_key = None
+                
                 tokens[token_id] = TokenData(
                     access_token=access_token,
                     refresh_token=refresh_token,
                     expires_at=expires_at,
                     uploaded_at=uploaded_at,
-                    usage_count=usage_count
+                    usage_count=usage_count,
+                    user_info=user_info_dict,
+                    api_key=api_key
                 )
         
         self._cache_result(cache_key, tokens)

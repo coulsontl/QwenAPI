@@ -1,3 +1,3 @@
 """
-Source code package for Qwen Code API Server
+Source code package for iFlow-Cli API Server
 """
