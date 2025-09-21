@@ -2,13 +2,13 @@ name: CI & Release
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "develop" ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ "develop" ]
 
 env:
-  DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}
+  DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/qwen-code-api
 
 jobs:
   ci:
@@ -66,6 +66,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta-dockerhub.outputs.tags }}
           labels: ${{ steps.meta-dockerhub.outputs.labels }}
