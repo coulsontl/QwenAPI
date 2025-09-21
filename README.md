@@ -235,7 +235,7 @@ docker run -d \
   -e API_PASSWORD=your_secure_password \
   -e OAUTH_CLIENT_ID=your_client_id \
   -v $(pwd)/data:/app/data \
-  ghcr.io/water008/qwenapi:iflow
+  ghcr.io/coulsontl/iflow-cli-api
 
 # 使用Docker Compose
 docker-compose up -d
