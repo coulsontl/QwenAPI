@@ -93,11 +93,11 @@ async def api_upload_token(request: Request, auth: bool = Depends(check_auth)):
     data = await parse_json(request)
     access_token = data.get('access_token')
     refresh_token = data.get('refresh_token')
-    
+
     if not access_token or not refresh_token:
         logger.warning("上传 token 时缺少必要字段")
         raise HTTPException(400, "缺少 access_token 或 refresh_token")
-    
+
     token_id = get_token_id(refresh_token)
     token_data = TokenData(
         access_token=access_token,
@@ -105,7 +105,7 @@ async def api_upload_token(request: Request, auth: bool = Depends(check_auth)):
         expires_at=data.get('expiry_date'),
         uploaded_at=int(time.time() * 1000)
     )
-    
+
     token_manager.save_token(token_id, token_data)
     logger.info("新 token 上传成功，ID: %s", token_id)
     return JSONResponse({'success': True, 'tokenId': token_id})
@@ -120,11 +120,11 @@ async def api_token_status(auth: bool = Depends(check_auth)):
 async def api_refresh_single_token(request: Request, auth: bool = Depends(check_auth)):
     data = await parse_json(request)
     token_id = data.get('tokenId')
-    
+
     if not token_id:
         logger.warning("刷新单个 token 缺少 tokenId")
         raise HTTPException(400, "缺少 tokenId")
-    
+
     token_manager.load_tokens()
     try:
         result = await token_manager.refresh_single_token(token_id)
@@ -138,16 +138,16 @@ async def api_refresh_single_token(request: Request, auth: bool = Depends(check_
 async def api_delete_token(request: Request, auth: bool = Depends(check_auth)):
     data = await parse_json(request)
     token_id = data.get('tokenId')
-    
+
     if not token_id:
         logger.warning("删除 token 缺少 tokenId")
         raise HTTPException(400, "缺少 tokenId")
-    
+
     token_manager.load_tokens()
     if token_id not in token_manager.token_store:
         logger.warning("删除 token 时未找到记录，ID: %s", token_id)
         raise HTTPException(404, "指定 token 不存在")
-    
+
     token_manager.delete_token(token_id)
     logger.info("已删除 token，ID: %s", token_id)
     return JSONResponse({'success': True, 'tokenId': token_id})
@@ -174,7 +174,7 @@ async def api_refresh_token(auth: bool = Depends(check_auth)):
 async def api_oauth_init(auth: bool = Depends(check_auth)):
     try:
         result = await asyncio.wait_for(
-            oauth_manager.init_oauth(), 
+            oauth_manager.init_oauth(),
             timeout=12
         )
         return JSONResponse(result)
@@ -197,20 +197,20 @@ async def api_oauth_init(auth: bool = Depends(check_auth)):
 async def api_oauth_poll(request: Request, auth: bool = Depends(check_auth)):
     data = await parse_json(request)
     state_id = data.get('stateId')
-    
+
     if not state_id:
         logger.warning("OAuth 轮询缺少 stateId")
         raise HTTPException(400, "缺少 stateId")
-    
+
     result = await oauth_manager.poll_oauth_status(state_id)
-    
+
     if result.get('success') and result.get('tokenData'):
         token_data = result['tokenData']
         token_id = get_token_id(token_data.refresh_token)
         token_manager.save_token(token_id, token_data)
         logger.info("OAuth 授权成功，已保存 token，ID: %s", token_id)
         return JSONResponse({'success': True, 'tokenId': token_id})
-    
+
     logger.debug("OAuth 授权仍在进行，stateId: %s", state_id)
     return JSONResponse(result)
 
@@ -225,7 +225,14 @@ async def api_oauth_cancel(request: Request, auth: bool = Depends(check_auth)):
 @router.post("/chat")
 async def api_chat(request: Request, auth: bool = Depends(check_auth)):
     logger.debug("收到聊天请求，路径: %s", request.url.path)
-    return await handle_chat(await parse_json(request))
+    # 获取原始请求体以支持多媒体JSON等复杂数据
+    try:
+        raw_body = await request.body()
+    except Exception as e:
+        logger.exception("读取请求体失败")
+        raise HTTPException(status_code=400, detail="Failed to read request body")
+
+    return await handle_chat(await parse_json(request), request, raw_body)
 
 @router.get("/statistics/usage")
 async def get_usage_statistics(request: Request, auth: bool = Depends(check_auth)):
@@ -246,7 +253,7 @@ async def delete_usage_statistics(request: Request, auth: bool = Depends(check_a
     if not date:
         logger.warning("删除使用统计缺少日期")
         raise HTTPException(400, "缺少 date 参数")
-    
+
     deleted = db.delete_usage_stats(date)
     logger.info("删除使用统计完成，日期: %s，删除条目: %s", date, deleted)
     return JSONResponse({'success': True, 'deletedCount': deleted})
@@ -269,9 +276,9 @@ async def health_check():
 async def get_metrics(auth: bool = Depends(check_auth)):
     try:
         tokens = db.load_all_tokens()
-        valid = sum(1 for _, token in tokens.items() 
+        valid = sum(1 for _, token in tokens.items()
                    if not (token.expires_at and time.time() * 1000 > token.expires_at))
-        
+
         return JSONResponse({
             "tokens": {"total": len(tokens), "valid": valid},
             "usage": {"today": db.get_usage_stats(get_local_today_iso())},
@@ -287,7 +294,7 @@ async def get_version(auth: bool = Depends(check_auth)):
         if _version_manager:
             try:
                 version = await asyncio.wait_for(
-                    _version_manager.get_version(), 
+                    _version_manager.get_version(),
                     timeout=8
                 )
                 return JSONResponse({"version": version})
@@ -302,210 +309,234 @@ async def get_version(auth: bool = Depends(check_auth)):
         return JSONResponse({"version": "错误", "error": str(e)})
 
 
-
-async def _make_api_request_with_retry(session, url, json_data, headers, max_retries=5):
-    last_exception = None
-    for attempt in range(max_retries):
-        try:
-            logger.debug("发起 Qwen API 请求，第 %s 次尝试", attempt + 1)
-            response = await session.post(url, json=json_data, headers=headers)
-            return response
-        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
-            last_exception = e
-            if attempt < max_retries - 1:
-                logger.warning("Qwen API 请求失败，准备重试，第 %s 次，原因: %s", attempt + 1, e)
-                await asyncio.sleep(2 ** attempt)
-                continue
-            raise last_exception
-
-async def handle_chat(data: Dict[str, Any], max_tool_calls: int = 10):
+async def handle_chat(data: Dict[str, Any], request: Request = None, raw_body: bytes = None):
+    """
+    处理聊天请求，支持透传headers和参数，保留User-Agent和计数逻辑
+    """
     messages = data.get('messages', [])
     model = data.get('model', 'qwen3-coder')
     stream = data.get('stream', False)
-    tools = data.get('tools', [])
-    tool_choice = data.get('tool_choice', 'auto')
-    logger.debug(
-        "处理聊天请求，模型: %s，消息数: %s，流式: %s，工具数: %s",
-        model,
-        len(messages),
-        stream,
-        len(tools)
-    )
-    
+
+    # 重试逻辑
+    max_retries = 3
+    for attempt in range(max_retries):
+        result = await _handle_chat_with_retry(data, request, raw_body, model, stream, attempt)
+        if result is not None:
+            return result
+        # 如果是最后一次尝试，直接返回错误
+        if attempt == max_retries - 1:
+            raise HTTPException(status_code=500, detail="All retry attempts failed")
+
+    raise HTTPException(status_code=500, detail="All retry attempts failed")
+
+
+async def _handle_chat_with_retry(data: Dict[str, Any], request: Request, raw_body: bytes, model: str, stream: bool, attempt: int):
+    """
+    处理聊天请求并支持重试逻辑
+    """
+    messages = data.get('messages', [])
+
+    # 详细调试日志 - 入参
+    logger.debug("=== 聊天请求入参调试 ===")
+    logger.debug("原始请求数据: %s", json.dumps(data, ensure_ascii=False, indent=2))
+    if request:
+        logger.debug("请求headers: %s", dict(request.headers))
+        logger.debug("请求URL: %s", str(request.url))
+        logger.debug("请求方法: %s", request.method)
+    logger.debug("解析后参数 - 模型: %s，消息数: %s，流式: %s", model, len(messages), stream)
+    logger.debug("重试尝试次数: %s", attempt)
+
     if not messages or not isinstance(messages, list):
         logger.warning("聊天请求缺少消息体或格式错误")
         raise HTTPException(400, "messages 字段不能为空，且必须为数组")
 
-    try:
-        encoding = tiktoken.get_encoding("cl100k_base")
-    except:
-        encoding = tiktoken.encoding_for_model("gpt-4")
-
-    prompt_tokens = sum(len(encoding.encode(str(msg.get('content', '')))) for msg in messages)
+    # 获取有效的token
     token_manager.load_tokens()
-    
     valid_token = await token_manager.get_valid_token()
     if not valid_token:
         logger.error("未找到可用 token")
         raise HTTPException(400, "没有可用的 token，请先上传或刷新 token")
-    
+
     token_id, current_token = valid_token
-    session = await get_session()
-    
-    # 优先使用apiKey，如果没有则使用access_token
-    auth_token = current_token.api_key if current_token.api_key else current_token.access_token
-    headers = {
-        'Authorization': f'Bearer {auth_token}',
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream' if stream else 'application/json'
-    }
-    
-    if _version_manager:
-        headers['User-Agent'] = await _version_manager.get_user_agent_async()
 
-    # 构建请求体
-    body = {
-        'model': model,
-        'messages': messages,
-        'temperature': data.get('temperature', 0.5),
-        'top_p': data.get('top_p', 1),
-        'stream': stream
-    }
-    
-    # 添加工具调用支持
-    if tools:
-        body['tools'] = tools
-        body['tool_choice'] = tool_choice
+    # 标记token为正在使用中
+    token_manager.mark_token_in_use(token_id)
 
-    # 处理工具调用对话
-    conversation_messages = messages.copy()
-    tool_call_count = 0
-    result = None
-    
-    while tool_call_count < max_tool_calls:
+    try:
+        # 构建透传的headers
+        passthrough_headers = {}
+        if request:
+            # 如果有request对象，透传所有headers除了Authorization和Host
+            # Host header需要被移除，以避免上游服务器路由错误
+            for key, value in request.headers.items():
+                if key.lower() not in ['authorization', 'host']:
+                    passthrough_headers[key] = value
+
+        # 使用我们的token替换Authorization
+        auth_token = current_token.api_key if current_token.api_key else current_token.access_token
+        passthrough_headers['Authorization'] = f'Bearer {auth_token}'
+
+        # 添加User-Agent（保留原有逻辑，但如果原始请求已有则不覆盖）
+        if 'User-Agent' not in passthrough_headers and 'user-agent' not in passthrough_headers:
+            try:
+                from ..utils.version_manager import get_version_manager
+                version_manager = get_version_manager()
+                if version_manager:
+                    passthrough_headers['User-Agent'] = await version_manager.get_user_agent_async()
+            except Exception as e:
+                logger.warning("获取User-Agent失败: %s", e)
+                passthrough_headers['User-Agent'] = 'iFlow-Cli-API-Server'
+
+        # 确保Content-Type正确设置（如果原始请求体存在）
+        if raw_body is not None and 'content-type' not in passthrough_headers and 'Content-Type' not in passthrough_headers:
+            passthrough_headers['Content-Type'] = request.headers.get('content-type', 'application/json')
+
+        # 确保Accept正确设置（如果原始请求没有设置）
+        if 'accept' not in passthrough_headers and 'Accept' not in passthrough_headers:
+            passthrough_headers['Accept'] = 'text/event-stream' if stream else 'application/json'
+
+        # 详细调试日志 - 透传参数
+        logger.debug("=== 透传参数调试 ===")
+        logger.debug("透传headers: %s", json.dumps(passthrough_headers, ensure_ascii=False, indent=2))
+        logger.debug("透传数据: %s", json.dumps(data, ensure_ascii=False, indent=2))
+        logger.debug("目标API端点: %s", API_ENDPOINT)
+        logger.debug("透传聊天请求，模型: %s，流式: %s，headers数量: %s",
+                    model, stream, len(passthrough_headers))
+
+        # 发起透传请求
+        session = await get_session()
+
         try:
-            response = await _make_api_request_with_retry(session, API_ENDPOINT, body, headers)
-            if response.status != 200:
-                logger.error("上游 API 返回非 200 状态码: %s", response.status)
-                raise HTTPException(500, f'API error: {response.status}')
-        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
-            logger.error(f"API request failed after retries: {str(e)}")
-            raise HTTPException(500, f'Request failed: {str(e)}')
+            logger.debug("=== 发起上游API请求 ===")
+            # 使用原始请求体进行透传，支持多媒体JSON等复杂数据
+            async with session.post(
+                API_ENDPOINT,
+                data=raw_body if raw_body is not None else json.dumps(data),
+                headers=passthrough_headers,
+                timeout=aiohttp.ClientTimeout(total=90)
+            ) as response:
 
-        if stream:
-            # 流式响应处理
-            logger.debug("使用流式响应返回结果")
-            return await _handle_stream_response(response, conversation_messages, token_id, model, encoding, prompt_tokens)
-        
-        result = await response.json()
-        
-        # 检查是否有工具调用
-        has_tool_calls = False
-        if 'choices' in result and len(result['choices']) > 0:
-            choice = result['choices'][0]
-            if 'message' in choice:
-                message = choice['message']
-                if 'tool_calls' in message and message['tool_calls']:
-                    has_tool_calls = True
-        
-        if has_tool_calls:
-            # 处理工具调用
-            tool_executor = get_tool_executor()
-            choice = result['choices'][0]
-            message = choice['message']
-            tool_calls = message['tool_calls']
-            logger.debug("检测到工具调用，共 %s 个", len(tool_calls))
-            
-            # 添加助手响应到对话
-            conversation_messages.append({
-                "role": "assistant",
-                "content": message.get("content", ""),
-                "tool_calls": tool_calls
-            })
-            
-            # 执行工具调用
-            tool_results = await tool_executor.execute_tool_calls(tool_calls)
-            logger.debug("工具调用执行完成，返回结果数量: %s", len(tool_results))
-            
-            # 添加工具结果到对话
-            for tool_result in tool_results:
-                conversation_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_result.get("tool_call_id", ""),
-                    "content": tool_result.get("content", "")
-                })
-            
-            # 更新请求体以继续对话
-            body['messages'] = conversation_messages
-            tool_call_count += 1
-        else:
-            # 没有工具调用，返回结果
-            if 'usage' in result:
-                db.update_token_usage(get_local_today_iso(), model, result['usage'].get('total_tokens', 0))
-                db.increment_token_usage_count(token_id)
-            logger.debug("聊天请求完成，使用 tokens: %s", result.get('usage', {}).get('total_tokens'))
-            
-            return JSONResponse(result)
-    
-    # 达到最大工具调用次数
-    if result and 'usage' in result:
-        db.update_token_usage(get_local_today_iso(), model, result['usage'].get('total_tokens', 0))
-        db.increment_token_usage_count(token_id)
-    logger.warning("达到工具调用最大次数 %s，返回最后一次结果", max_tool_calls)
-    return JSONResponse(result or {'success': False, 'error': '已达到最大工具调用次数'})
+                # 详细调试日志 - 上游API响应
+                logger.debug("=== 上游API响应调试 ===")
+                logger.debug("响应状态码: %s", response.status)
+                logger.debug("响应headers: %s", dict(response.headers))
 
+                # 处理特定的错误码
+                if response.status == 401:
+                    logger.warning("上游API返回401状态码，标记当前token为过期并尝试刷新")
+                    # 标记当前token为过期（设置过期时间为当前时间）
+                    current_token.expires_at = int(time.time() * 1000)
+                    token_manager.save_token(token_id, current_token)
 
-async def _handle_stream_response(response, conversation_messages, token_id, model, encoding, prompt_tokens):
-    """处理流式响应"""
-    tool_executor = get_tool_executor()
-    buffer = ""
-    last_content = ""
-    completion_text = ""
-    tool_calls_detected = False
-    logger.debug("开始处理流式响应，tokenId: %s，模型: %s", token_id, model)
-    
-    async def generate():
-        nonlocal buffer, last_content, completion_text, tool_calls_detected
-        
-        async for chunk in response.content.iter_any():
-            buffer += chunk.decode('utf-8')
-            
-            while '\n' in buffer:
-                line, buffer = buffer.split('\n', 1)
-                if line.startswith('data:'):
-                    line_data = line[5:].strip()
-                    if line_data and line_data != '[DONE]':
-                        try:
-                            json_data = json.loads(line_data)
-                            delta = json_data.get('choices', [{}])[0].get('delta', {})
-                            current_content = delta.get('content', '')
-                            
-                            # 检查工具调用
-                            if 'tool_calls' in delta:
-                                tool_calls_detected = True
-                                logger.debug("流式响应检测到工具调用信号")
-                            
-                            if current_content and current_content != last_content:
-                                last_content = current_content
-                                completion_text += current_content
-                                yield line + '\n'
-                            elif not current_content:
-                                yield line + '\n'
-                        except:
-                            yield line + '\n'
+                    # 尝试刷新token
+                    try:
+                        await token_manager.refresh_single_token(token_id)
+                        logger.info("Token刷新成功，ID: %s", token_id)
+                        # 重新获取有效的token
+                        token_manager.load_tokens()
+                        new_valid_token = await token_manager.get_valid_token()
+                        if new_valid_token and new_valid_token[0] != token_id:
+                            # 使用新的token重试请求
+                            logger.info("使用新的token重试请求，新token ID: %s", new_valid_token[0])
+                            return None  # 返回None表示需要重试
+                        else:
+                            # 如果没有其他token，继续使用当前token重试
+                            logger.warning("没有其他可用token，继续使用当前token重试")
+                            return None  # 返回None表示需要重试
+                    except Exception as refresh_error:
+                        logger.error("刷新token失败: %s", str(refresh_error))
+                        # 尝试使用其他token
+                        token_manager.load_tokens()
+                        other_token = await token_manager.get_valid_token()
+                        if other_token and other_token[0] != token_id:
+                            logger.info("使用其他token重试请求，新token ID: %s", other_token[0])
+                            return None  # 返回None表示需要重试
+                        else:
+                            # 没有其他token，直接返回错误
+                            error_text = await response.text()
+                            logger.error("上游API错误响应内容: %s", error_text)
+                            raise HTTPException(status_code=401, detail=f"Upstream API error: {error_text}")
+
+                elif response.status == 429:
+                    logger.warning("上游API返回429状态码，临时禁用token并尝试使用其他token重试")
+                    # 临时禁用当前token 10秒钟
+                    token_manager.disable_token_temporarily(token_id, 10)
+
+                    # 尝试使用其他token
+                    token_manager.load_tokens()
+                    other_token = await token_manager.get_valid_token()
+                    if other_token and other_token[0] != token_id:
+                        logger.info("使用其他token重试请求，新token ID: %s", other_token[0])
+                        return None  # 返回None表示需要重试
                     else:
-                        yield line + '\n'
+                        # 没有其他token，直接返回错误
+                        error_text = await response.text()
+                        logger.error("上游API错误响应内容: %s", error_text)
+                        raise HTTPException(status_code=429, detail=f"Upstream API error: {error_text}")
+
+                elif response.status != 200:
+                    logger.error("上游API返回非200状态码: %s", response.status)
+                    error_text = await response.text()
+                    logger.error("上游API错误响应内容: %s", error_text)
+                    raise HTTPException(status_code=response.status, detail=f"Upstream API error: {error_text}")
+
+                if stream:
+                    # 流式响应透传
+                    logger.debug("=== 开始透传流式响应 ===")
+
+                    # 透传上游响应的headers
+                    response_headers = {}
+                    for key, value in response.headers.items():
+                        # 跳过可能冲突的headers
+                        if key.lower() not in ['content-encoding', 'content-length', 'transfer-encoding', 'connection']:
+                            response_headers[key] = value
+
+                    async def generate_stream():
+                        try:
+                            async for chunk in response.content.iter_any():
+                                yield chunk
+                        except Exception as e:
+                            logger.warning("流式响应传输过程中出现异常: %s", str(e))
+                            # 可以选择在这里 yield 一个错误消息给客户端
+                            yield f"data: {{\"error\": \"Stream transmission error: {str(e)}\"}}\n\n"
+
+                    return StreamingResponse(
+                        generate_stream(),
+                        media_type=response.headers.get('content-type', 'text/event-stream'),
+                        headers=response_headers
+                    )
                 else:
-                    yield line + '\n'
-        
-        if buffer:
-            yield buffer
-            
-        # 更新使用统计
-        if completion_text:
-            tokens = len(encoding.encode(completion_text))
-            db.update_token_usage(get_local_today_iso(), model, prompt_tokens + tokens)
-            db.increment_token_usage_count(token_id)
-            logger.info("流式响应完成，累计 tokens: %s", prompt_tokens + tokens)
-    
-    return StreamingResponse(generate(), media_type="text/event-stream")
+                    # 非流式响应透传
+                    try:
+                        result = await response.json()
+                        logger.debug("=== 上游API响应内容 ===")
+                        logger.debug("响应数据: %s", json.dumps(result, ensure_ascii=False, indent=2))
+
+                        # 更新使用统计（保留原有计数逻辑）
+                        if 'usage' in result:
+                            usage_tokens = result.get('usage', {}).get('total_tokens', 0)
+                            logger.debug("更新使用统计 - 模型: %s, tokens: %s", model, usage_tokens)
+                            db.update_token_usage(get_local_today_iso(), model, usage_tokens)
+                            token_manager.increment_token_usage_count(token_id)
+
+                        logger.debug("=== 返回最终响应 ===")
+                        return JSONResponse(content=result)
+                    except Exception as e:
+                        # 如果无法解析为JSON，直接返回文本内容
+                        logger.warning("无法解析上游API响应为JSON，将返回原始文本内容: %s", str(e))
+                        text_content = await response.text()
+                        return JSONResponse(content={"text": text_content})
+
+        except aiohttp.ClientError as e:
+            logger.error("透传请求失败: %s", str(e))
+            raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
+        except Exception as e:
+            logger.exception("透传过程中发生异常")
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+        finally:
+            # 标记token为使用完成
+            token_manager.mark_token_finished(token_id)
+    except Exception as e:
+        # 确保即使在异常情况下也标记token为使用完成
+        token_manager.mark_token_finished(token_id)
+        raise e

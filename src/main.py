@@ -163,4 +163,4 @@ async def oauth2callback(code: str = None, state: str = None):
         }, 500)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)
+    uvicorn.run("src.main:app", host=HOST, port=PORT, reload=DEBUG)
