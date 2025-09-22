@@ -80,10 +80,10 @@ DATABASE_URL=data/tokens.db # Database path
 DEBUG=false                 # Debug mode
 
 # Qwen API Configuration
-QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
-QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
-QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
-QWEN_OAUTH_SCOPE=openid profile email model.completion
+API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
+OAUTH2_BASE_URL=https://chat.qwen.ai
+OAUTH2_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
+OAUTH2_SCOPE=openid profile email model.completion
 
 # Token refresh threshold (seconds, default 2 hours = 7200 seconds)
 # When the remaining validity period of the token is greater than this value, the refresh will be skipped

@@ -80,10 +80,10 @@ DATABASE_URL=data/tokens.db # 数据库路径
 DEBUG=false                 # 调试模式
 
 # Qwen API配置
-QWEN_API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
-QWEN_OAUTH_BASE_URL=https://chat.qwen.ai
-QWEN_OAUTH_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
-QWEN_OAUTH_SCOPE=openid profile email model.completion
+API_ENDPOINT=https://portal.qwen.ai/v1/chat/completions
+OAUTH2_BASE_URL=https://chat.qwen.ai
+OAUTH2_CLIENT_ID=f0304373b74a44d2b584a3fb70ca9e56
+OAUTH2_SCOPE=openid profile email model.completion
 
 # Token刷新时间阈值（秒，默认2小时=7200秒）
 # 当Token剩余有效期大于此值时，将跳过刷新

@@ -29,17 +29,17 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info")
 
 # OAuth2 Configuration
-QWEN_OAUTH_BASE_URL = os.getenv("QWEN_OAUTH_BASE_URL", "https://chat.qwen.ai")
-QWEN_OAUTH_DEVICE_CODE_ENDPOINT = f"{QWEN_OAUTH_BASE_URL}/api/v1/oauth2/device/code"
-QWEN_OAUTH_TOKEN_ENDPOINT = f"{QWEN_OAUTH_BASE_URL}/api/v1/oauth2/token"
+OAUTH2_BASE_URL = os.getenv("OAUTH2_BASE_URL", "https://chat.qwen.ai")
+OAUTH2_DEVICE_CODE_ENDPOINT = f"{OAUTH2_BASE_URL}/api/v1/oauth2/device/code"
+OAUTH2_TOKEN_ENDPOINT = f"{OAUTH2_BASE_URL}/api/v1/oauth2/token"
 
 # OAuth Client Configuration
-QWEN_OAUTH_CLIENT_ID = os.getenv("QWEN_OAUTH_CLIENT_ID", "f0304373b74a44d2b584a3fb70ca9e56")
-QWEN_OAUTH_SCOPE = os.getenv("QWEN_OAUTH_SCOPE", "openid profile email model.completion")
-QWEN_OAUTH_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
+OAUTH2_CLIENT_ID = os.getenv("OAUTH2_CLIENT_ID", "f0304373b74a44d2b584a3fb70ca9e56")
+OAUTH2_SCOPE = os.getenv("OAUTH2_SCOPE", "openid profile email model.completion")
+OAUTH2_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 
 # API Configuration
-QWEN_API_ENDPOINT = os.getenv("QWEN_API_ENDPOINT", "https://portal.qwen.ai/v1/chat/completions")
+API_ENDPOINT = os.getenv("API_ENDPOINT", "https://portal.qwen.ai/v1/chat/completions")
 
 # Database Configuration
 DATABASE_TABLE_NAME = "tokens"

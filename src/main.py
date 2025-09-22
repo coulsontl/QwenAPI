@@ -13,7 +13,6 @@ from src.web import web_router
 from src.oauth import TokenManager
 from src.database import TokenDatabase
 from src.utils.version_manager import initialize_version_manager, get_version_manager
-from src.utils import initialize_tools
 
 # 设置日志
 LOG_LEVEL = getattr(logging, str(CONFIG_LOG_LEVEL).upper(), logging.INFO)
@@ -41,14 +40,6 @@ async def lifespan(app: FastAPI):
     from src.api.routes import set_version_manager
     set_version_manager(version_manager)
     _token_manager.set_version_manager(version_manager)
-    
-    # 初始化工具系统
-    try:
-        tool_registry = initialize_tools()
-        tool_count = len(tool_registry.get_all_tools()) if hasattr(tool_registry, "get_all_tools") else 0
-        logger.debug("工具系统初始化完成，当前已注册工具数量: %s", tool_count)
-    except Exception:
-        logger.exception("工具系统初始化失败")
     
     try:
         initial_version = await version_manager.get_version()
@@ -136,4 +127,4 @@ app.include_router(api_router, prefix="/api")
 app.include_router(openai_router)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)
+    uvicorn.run("src.main:app", host=HOST, port=PORT, reload=DEBUG)

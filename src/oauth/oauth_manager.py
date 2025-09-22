@@ -9,11 +9,11 @@ from typing import Dict, Optional, Any
 from ..models import OAuthState, TokenData
 from ..utils import generate_state_id, generate_pkce_pair
 from ..config import (
-    QWEN_OAUTH_DEVICE_CODE_ENDPOINT,
-    QWEN_OAUTH_TOKEN_ENDPOINT,
-    QWEN_OAUTH_CLIENT_ID,
-    QWEN_OAUTH_SCOPE,
-    QWEN_OAUTH_GRANT_TYPE
+    OAUTH2_DEVICE_CODE_ENDPOINT,
+    OAUTH2_TOKEN_ENDPOINT,
+    OAUTH2_CLIENT_ID,
+    OAUTH2_SCOPE,
+    OAUTH2_GRANT_TYPE
 )
 
 logger = logging.getLogger(__name__)
@@ -71,12 +71,12 @@ class OAuthManager:
         timeout = aiohttp.ClientTimeout(total=8)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             data = aiohttp.FormData()
-            data.add_field('client_id', QWEN_OAUTH_CLIENT_ID)
-            data.add_field('scope', QWEN_OAUTH_SCOPE)
+            data.add_field('client_id', OAUTH2_CLIENT_ID)
+            data.add_field('scope', OAUTH2_SCOPE)
             data.add_field('code_challenge', code_challenge)
             data.add_field('code_challenge_method', 'S256')
             
-            async with session.post(QWEN_OAUTH_DEVICE_CODE_ENDPOINT, data=data, headers=headers) as response:
+            async with session.post(OAUTH2_DEVICE_CODE_ENDPOINT, data=data, headers=headers) as response:
                 if response.status != 200:
                     reason = getattr(response, 'reason', '') or ''
                     error_text = await response.text()
@@ -141,12 +141,12 @@ class OAuthManager:
                 
             async with aiohttp.ClientSession() as session:
                 form_data = aiohttp.FormData()
-                form_data.add_field('grant_type', QWEN_OAUTH_GRANT_TYPE)
-                form_data.add_field('client_id', QWEN_OAUTH_CLIENT_ID)
+                form_data.add_field('grant_type', OAUTH2_GRANT_TYPE)
+                form_data.add_field('client_id', OAUTH2_CLIENT_ID)
                 form_data.add_field('device_code', state.device_code)
                 form_data.add_field('code_verifier', state.code_verifier)
                 
-                async with session.post(QWEN_OAUTH_TOKEN_ENDPOINT, data=form_data, headers=headers) as response:
+                async with session.post(OAUTH2_TOKEN_ENDPOINT, data=form_data, headers=headers) as response:
                     if response.status != 200:
                         try:
                             error_data = await response.json()
