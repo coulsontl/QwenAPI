@@ -502,13 +502,20 @@ async def _handle_chat_with_retry(data: Dict[str, Any], request: Request, raw_bo
                             # 客户端断开连接是正常情况，不需要特别处理
                             return
                         except Exception as e:
-                            logger.warning("流式响应传输过程中出现异常: %s", str(e))
-                            # 只有在客户端仍然连接时才尝试发送错误消息
-                            try:
-                                yield f"data: {{\"error\": \"Stream transmission error: {str(e)}\"}}\n\n"
-                            except:
-                                # 如果无法发送错误消息，就静默处理
-                                pass
+                            # 检查是否是连接关闭相关的异常
+                            error_str = str(e).lower()
+                            if "connection closed" in error_str or "peer closed connection" in error_str:
+                                logger.debug("流式传输过程中客户端断开连接: %s", str(e))
+                                # 客户端断开连接是正常情况，不需要特别处理
+                                return
+                            else:
+                                logger.warning("流式响应传输过程中出现异常: %s", str(e))
+                                # 只有在客户端仍然连接时才尝试发送错误消息
+                                try:
+                                    yield f"data: {{\"error\": \"Stream transmission error: {str(e)}\"}}\n\n"
+                                except:
+                                    # 如果无法发送错误消息，就静默处理
+                                    pass
 
                     return StreamingResponse(
                         generate_stream(),
