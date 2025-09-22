@@ -494,11 +494,21 @@ async def _handle_chat_with_retry(data: Dict[str, Any], request: Request, raw_bo
                     async def generate_stream():
                         try:
                             async for chunk in response.content.iter_any():
-                                yield chunk
+                                # 检查客户端是否仍然连接
+                                if chunk:
+                                    yield chunk
+                        except asyncio.CancelledError:
+                            logger.debug("流式传输被客户端取消")
+                            # 客户端断开连接是正常情况，不需要特别处理
+                            return
                         except Exception as e:
                             logger.warning("流式响应传输过程中出现异常: %s", str(e))
-                            # 可以选择在这里 yield 一个错误消息给客户端
-                            yield f"data: {{\"error\": \"Stream transmission error: {str(e)}\"}}\n\n"
+                            # 只有在客户端仍然连接时才尝试发送错误消息
+                            try:
+                                yield f"data: {{\"error\": \"Stream transmission error: {str(e)}\"}}\n\n"
+                            except:
+                                # 如果无法发送错误消息，就静默处理
+                                pass
 
                     return StreamingResponse(
                         generate_stream(),
