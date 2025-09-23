@@ -314,6 +314,13 @@ async def handle_chat(data: Dict[str, Any], request: Request = None, raw_body: b
     messages = data.get('messages', [])
     model = data.get('model', 'qwen3-coder')
     stream = data.get('stream', False)
+    
+    # 如果启用流式响应，自动添加stream_options配置
+    if stream:
+        data['stream_options'] = {
+            'include_usage': True
+        }
+        logger.debug("检测到流式请求，已自动添加stream_options配置: %s", data.get('stream_options'))
 
     # 重试逻辑
     max_retries = 3
