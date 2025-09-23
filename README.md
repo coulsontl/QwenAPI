@@ -85,9 +85,9 @@ DEBUG=false                 # 调试模式
 API_ENDPOINT=https://apis.iflow.cn/v1/chat/completions
 
 # OAuth2配置
-OAUTH_CLIENT_ID=your_client_id           # OAuth客户端ID（必填）
-OAUTH_CLIENT_SECRET=your_client_secret   # OAuth客户端密钥（可选）
-OAUTH_VERIFICATION_URI=https://iflow.cn/oauth
+OAUTH2_CLIENT_ID=your_client_id           # OAuth客户端ID（必填）
+OAUTH2_CLIENT_SECRET=your_client_secret   # OAuth客户端密钥（可选）
+OAUTH2_VERIFICATION_URI=https://iflow.cn/oauth
 OAUTH2_TOKEN_ENDPOINT=https://iflow.cn/oauth/token
 OAUTH2_AUTHORIZATION_HEADER=your_auth_header  # 可选
 OAUTH2_CALLBACK_URL=http://localhost:8000/oauth2callback
@@ -233,7 +233,7 @@ docker run -d \
   --name qwen-api \
   -p 8000:8000 \
   -e API_PASSWORD=your_secure_password \
-  -e OAUTH_CLIENT_ID=your_client_id \
+  -e OAUTH2_CLIENT_ID=your_client_id \
   -v $(pwd)/data:/app/data \
   ghcr.io/coulsontl/iflow-cli-api
 

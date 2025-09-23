@@ -8,12 +8,12 @@ import asyncio
 import logging
 from typing import Dict, Optional, Any
 
-from src.config.settings import OAUTH_CLIENT_SECRET
+from src.config.settings import OAUTH2_CLIENT_SECRET
 from ..models import OAuthState, TokenData
 from ..utils import generate_state_id, generate_pkce_pair
 from ..config import (
-    OAUTH_CLIENT_ID,
-    OAUTH_VERIFICATION_URI,
+    OAUTH2_CLIENT_ID,
+    OAUTH2_VERIFICATION_URI,
     OAUTH2_TOKEN_ENDPOINT,
     OAUTH2_AUTHORIZATION_HEADER,
     OAUTH2_CALLBACK_URL,
@@ -74,8 +74,8 @@ class OAuthManager:
         
         state_id = generate_state_id()
         auth_state = OAuthState(
-            verification_uri=OAUTH_VERIFICATION_URI,
-            verification_uri_complete=f"{OAUTH_VERIFICATION_URI}?loginMethod=phone&type=phone&redirect={OAUTH2_CALLBACK_URL.replace(':', '%3A').replace('/', '%2F')}&state={state_id}&client_id={OAUTH_CLIENT_ID}",
+            verification_uri=OAUTH2_VERIFICATION_URI,
+            verification_uri_complete=f"{OAUTH2_VERIFICATION_URI}?loginMethod=phone&type=phone&redirect={OAUTH2_CALLBACK_URL.replace(':', '%3A').replace('/', '%2F')}&state={state_id}&client_id={OAUTH2_CLIENT_ID}",
             code_verifier=code_verifier,
             expires_at=time.time()*1000 + 1000*60*15,
         )
@@ -180,11 +180,11 @@ class OAuthManager:
         form_data.add_field('grant_type', 'authorization_code')
         form_data.add_field('code', code)
         form_data.add_field('redirect_uri', OAUTH2_CALLBACK_URL)
-        form_data.add_field('client_id', OAUTH_CLIENT_ID)
+        form_data.add_field('client_id', OAUTH2_CLIENT_ID)
         
-        # 只有当 OAUTH_CLIENT_SECRET 存在时才添加
-        if OAUTH_CLIENT_SECRET:
-            form_data.add_field('client_secret', OAUTH_CLIENT_SECRET)
+        # 只有当 OAUTH2_CLIENT_SECRET 存在时才添加
+        if OAUTH2_CLIENT_SECRET:
+            form_data.add_field('client_secret', OAUTH2_CLIENT_SECRET)
         
         async with aiohttp.ClientSession() as session:
             async with session.post(

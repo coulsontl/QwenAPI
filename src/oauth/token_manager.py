@@ -12,7 +12,7 @@ from ..models import TokenData
 from ..database import TokenDatabase
 from ..utils import get_token_id
 from ..utils.timezone_utils import timestamp_to_local_datetime, format_local_datetime
-from ..config import OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH2_TOKEN_ENDPOINT, OAUTH2_AUTHORIZATION_HEADER, USER_INFO_ENDPOINT
+from ..config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET, OAUTH2_TOKEN_ENDPOINT, OAUTH2_AUTHORIZATION_HEADER, USER_INFO_ENDPOINT
 
 logger = logging.getLogger(__name__)
 
@@ -146,11 +146,11 @@ class TokenManager:
                 data = aiohttp.FormData()
                 data.add_field('grant_type', 'refresh_token')
                 data.add_field('refresh_token', token.refresh_token)
-                data.add_field('client_id', OAUTH_CLIENT_ID)
+                data.add_field('client_id', OAUTH2_CLIENT_ID)
 
-                # 只有当 OAUTH_CLIENT_SECRET 存在时才添加
-                if OAUTH_CLIENT_SECRET:
-                    data.add_field('client_secret', OAUTH_CLIENT_SECRET)
+                # 只有当 OAUTH2_CLIENT_SECRET 存在时才添加
+                if OAUTH2_CLIENT_SECRET:
+                    data.add_field('client_secret', OAUTH2_CLIENT_SECRET)
 
                 async with session.post(
                     OAUTH2_TOKEN_ENDPOINT,

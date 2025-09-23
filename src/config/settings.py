@@ -29,10 +29,10 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info")
 
 # OAuth2 Configuration
-OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
-OAUTH_CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET")
-OAUTH_GRANT_TYPE = "authorization_code"
-OAUTH_VERIFICATION_URI = os.getenv("OAUTH_VERIFICATION_URI", "https://iflow.cn/oauth")
+OAUTH2_CLIENT_ID = os.getenv("OAUTH2_CLIENT_ID")
+OAUTH2_CLIENT_SECRET = os.getenv("OAUTH2_CLIENT_SECRET")
+OAUTH2_GRANT_TYPE = "authorization_code"
+OAUTH2_VERIFICATION_URI = os.getenv("OAUTH2_VERIFICATION_URI", "https://iflow.cn/oauth")
 
 # OAuth2 Callback Configuration
 OAUTH2_CALLBACK_PORT = os.getenv("OAUTH2_CALLBACK_PORT", PORT)
