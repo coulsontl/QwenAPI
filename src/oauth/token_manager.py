@@ -45,9 +45,15 @@ class TokenManager:
         logger.info("已保存/更新 token，ID: %s", token_id)
 
     def delete_token(self, token_id: str) -> None:
+        # 在删除前获取用户信息用于日志记录
+        token_data = self.token_store.get(token_id)
+        user_name = "未知用户"
+        if token_data and token_data.user_info:
+            user_name = token_data.user_info.get('userName', '未知用户')
+        
         self.token_store.pop(token_id, None)
         self.db.delete_token(token_id)
-        logger.info("已删除 token，ID: %s", token_id)
+        logger.info("已删除 token，ID: %s，用户: %s", token_id, user_name)
 
     def delete_all_tokens(self) -> None:
         self.token_store.clear()

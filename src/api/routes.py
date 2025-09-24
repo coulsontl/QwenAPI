@@ -149,7 +149,6 @@ async def api_delete_token(request: Request, auth: bool = Depends(check_auth)):
         raise HTTPException(404, "指定 token 不存在")
 
     token_manager.delete_token(token_id)
-    logger.info("已删除 token，ID: %s", token_id)
     return JSONResponse({'success': True, 'tokenId': token_id})
 
 @router.post("/delete-all-tokens")
