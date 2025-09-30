@@ -47,7 +47,19 @@ async def get_models(request: Request):
                 "owned_by": "qwen"
             },
             {
+                "id": "qwen3-vl-plus",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "qwen"
+            },
+            {
                 "id": "qwen3-max-preview",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "qwen"
+            },
+            {
+                "id": "qwen3-max",
                 "object": "model",
                 "created": int(time.time()),
                 "owned_by": "qwen"
@@ -71,6 +83,12 @@ async def get_models(request: Request):
                 "owned_by": "kimi"
             },
             {
+                "id": "deepseek-v3.2",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "deepseek"
+            },
+            {
                 "id": "deepseek-v3.1",
                 "object": "model",
                 "created": int(time.time()),
@@ -78,12 +96,6 @@ async def get_models(request: Request):
             },
             {
                 "id": "deepseek-r1",
-                "object": "model",
-                "created": int(time.time()),
-                "owned_by": "deepseek"
-            },
-            {
-                "id": "deepseek-v3",
                 "object": "model",
                 "created": int(time.time()),
                 "owned_by": "deepseek"
