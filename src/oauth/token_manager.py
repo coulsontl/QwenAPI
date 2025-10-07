@@ -12,7 +12,7 @@ from ..models import TokenData
 from ..database import TokenDatabase
 from ..utils import get_token_id
 from ..utils.timezone_utils import timestamp_to_local_datetime, format_local_datetime
-from ..config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET, OAUTH2_TOKEN_ENDPOINT, OAUTH2_AUTHORIZATION_HEADER, USER_INFO_ENDPOINT
+from ..config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET, OAUTH2_TOKEN_ENDPOINT, USER_INFO_ENDPOINT, get_oauth2_authorization_header
 
 logger = logging.getLogger(__name__)
 
@@ -138,9 +138,10 @@ class TokenManager:
                 'sec-fetch-mode': 'cors'
             }
 
-            # 只有当 OAUTH2_AUTHORIZATION_HEADER 存在时才添加
-            if OAUTH2_AUTHORIZATION_HEADER:
-                headers['Authorization'] = OAUTH2_AUTHORIZATION_HEADER
+            # 生成并添加 Basic Authorization header
+            auth_header = get_oauth2_authorization_header()
+            if auth_header:
+                headers['Authorization'] = auth_header
 
             if self._version_manager:
                 try:

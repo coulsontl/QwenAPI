@@ -15,9 +15,9 @@ from ..config import (
     OAUTH2_CLIENT_ID,
     OAUTH2_VERIFICATION_URI,
     OAUTH2_TOKEN_ENDPOINT,
-    OAUTH2_AUTHORIZATION_HEADER,
     OAUTH2_CALLBACK_URL,
-    USER_INFO_ENDPOINT
+    USER_INFO_ENDPOINT,
+    get_oauth2_authorization_header
 )
 
 logger = logging.getLogger(__name__)
@@ -166,9 +166,10 @@ class OAuthManager:
             'sec-fetch-mode': 'cors'
         }
         
-        # 只有当 OAUTH2_AUTHORIZATION_HEADER 存在时才添加
-        if OAUTH2_AUTHORIZATION_HEADER:
-            headers['Authorization'] = OAUTH2_AUTHORIZATION_HEADER
+        # 生成并添加 Basic Authorization header
+        auth_header = get_oauth2_authorization_header()
+        if auth_header:
+            headers['Authorization'] = auth_header
         
         if self._version_manager:
             try:

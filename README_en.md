@@ -87,10 +87,9 @@ API_ENDPOINT=https://apis.iflow.cn/v1/chat/completions
 
 # OAuth2 Configuration
 OAUTH2_CLIENT_ID=your_client_id           # OAuth client ID (required)
-OAUTH2_CLIENT_SECRET=your_client_secret   # OAuth client secret (optional)
+OAUTH2_CLIENT_SECRET=your_client_secret   # OAuth client secret (required, used to generate Basic Authorization header)
 OAUTH2_VERIFICATION_URI=https://iflow.cn/oauth
 OAUTH2_TOKEN_ENDPOINT=https://iflow.cn/oauth/token
-OAUTH2_AUTHORIZATION_HEADER=your_auth_header  # Optional
 OAUTH2_CALLBACK_URL=http://localhost:8000/oauth2callback
 
 # User Info Configuration

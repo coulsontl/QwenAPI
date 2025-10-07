@@ -2,6 +2,7 @@
 Configuration constants and settings for iFlow-Cli API Server
 """
 import os
+import base64
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
@@ -41,7 +42,6 @@ OAUTH2_CALLBACK_URL = f"http://{OAUTH2_CALLBACK_HOST}:{OAUTH2_CALLBACK_PORT}/oau
 
 # OAuth2 Token Exchange Configuration
 OAUTH2_TOKEN_ENDPOINT = os.getenv("OAUTH2_TOKEN_ENDPOINT", "https://iflow.cn/oauth/token")
-OAUTH2_AUTHORIZATION_HEADER = os.getenv("OAUTH2_AUTHORIZATION_HEADER")
 
 # User Info Configuration
 USER_INFO_ENDPOINT = os.getenv("USER_INFO_ENDPOINT", "https://iflow.cn/api/oauth/getUserInfo")
@@ -59,3 +59,21 @@ STATE_ID_LENGTH = 32
 
 # Web Interface Configuration
 HTML_TEMPLATE_PATH = "templates/index.html"
+
+
+def get_oauth2_authorization_header() -> str:
+    """
+    生成OAuth2 Basic Authorization header
+    使用 OAUTH2_CLIENT_ID:OAUTH2_CLIENT_SECRET 进行base64编码，然后添加 Basic 前缀
+    """
+    if not OAUTH2_CLIENT_ID or not OAUTH2_CLIENT_SECRET:
+        return ""
+    
+    # 拼接 client_id:client_secret
+    credentials = f"{OAUTH2_CLIENT_ID}:{OAUTH2_CLIENT_SECRET}"
+    
+    # 进行base64编码
+    encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
+    
+    # 添加 Basic 前缀
+    return f"Basic {encoded_credentials}"

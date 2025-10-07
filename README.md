@@ -86,10 +86,9 @@ API_ENDPOINT=https://apis.iflow.cn/v1/chat/completions
 
 # OAuth2配置
 OAUTH2_CLIENT_ID=your_client_id           # OAuth客户端ID（必填）
-OAUTH2_CLIENT_SECRET=your_client_secret   # OAuth客户端密钥（可选）
+OAUTH2_CLIENT_SECRET=your_client_secret   # OAuth客户端密钥（必填，用于生成Basic Authorization header）
 OAUTH2_VERIFICATION_URI=https://iflow.cn/oauth
 OAUTH2_TOKEN_ENDPOINT=https://iflow.cn/oauth/token
-OAUTH2_AUTHORIZATION_HEADER=your_auth_header  # 可选
 OAUTH2_CALLBACK_URL=http://localhost:8000/oauth2callback
 
 # 用户信息配置
